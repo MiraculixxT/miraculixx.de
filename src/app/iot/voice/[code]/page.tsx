@@ -1,105 +1,176 @@
 'use client';
-import Image from 'next/image';
-import {FormEvent} from "react";
+import React, {Dispatch, FormEvent, SetStateAction} from "react";
 import {useEffect, useState} from 'react';
+import {accessProtectedAPI, fetchMediaFile} from "@/components/apiRequests";
+import {API_URL} from "@/app/config";
+import {getToken} from "@/components/tokenCookie";
 
 export default function VoiceActingSubmission({params}: {
     params: Promise<{ code: string }>
 }) {
-    const [texts, setTexts] = useState<{ [key: string]: string }>({});
+    const [character, setCharacter] = useState<{name: string, description: string, texts: [string], audios: [string]}>({name: '', description: '', texts: [''], audios: ['']});
+    const [code, setCode] = useState<string>('');
+    const [file, setFile] = useState<{}>({});
 
     useEffect(() => {
         async function fetchData() {
             const {code} = await params;
-            const texts = await getTextID(code);
-            setTexts(texts);
+            const char = await getCharacter(code);
+            setCharacter(char);
+            setCode(code);
         }
 
         fetchData().then(r => {
-            console.debug("Data fetched:", r)
-        })
+        });
     }, [params]);
-
-    const handleSubmit = (event: FormEvent<HTMLFormElement>, textKey: string) => {
-        event.preventDefault();
-        const file = event.target.elements[`upload-${textKey}`].files[0];
-        if (file) {
-            console.log(`File submitted for ${textKey}:`, file);
-            // Implement actual file upload logic here
-        }
-    };
 
     return (
         <div className="min-h-screen bg-[#0d0d0d] text-gray-100">
-            {/* Wallpaper and Title */}
-            <div className="relative h-64 bg-gradient-to-b from-transparent to-[#0d0d0d]">
-                <Image
-                    src="/img/iot/header.png"
-                    alt="Island of Time"
-                    layout="fill"
-                    objectFit="cover"
-                    objectPosition="center"
-                    className="z-0"
-                />
-                <div className="absolute inset-0 flex items-center justify-center z-10 bg-black bg-opacity-40">
-                    <h1 className="text-white text-5xl font-extrabold drop-shadow-lg">
-                        Island of Time
-                    </h1>
-                </div>
-            </div>
 
             {/* Main Content */}
             <div className="container mx-auto px-4 py-16">
-                <h2 className="text-3xl font-bold text-center mb-12">Submit Your Voice Acting</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {Object.entries(texts).map(([textKey, text]) => (
-                        <div
-                            key={textKey}
-                            className="flex flex-col justify-between p-6 bg-[#1a1a1a] shadow-xl rounded-xl border border-gray-700 transition-transform transform hover:scale-105"
-                        >
-                            <div className="bg-[#2a2a2a] p-3 rounded-xl h-[100%] mb-4">
-                                <p className="font-semibold text-xl mb-4">{text}</p>
-                            </div>
-
-                            <div>
-                                <audio
-                                    controls
-                                    className="mb-4 w-full rounded-lg"
-                                    src={`/audio/iot/${textKey}.mp3`}
-                                >
-                                    Your browser does not support the audio element.
-                                </audio>
-                                <form onSubmit={(e) => handleSubmit(e, textKey)}>
-                                    <input
-                                        type="file"
-                                        accept="audio/mp3, audio/wav, audio/ogg"
-                                        id={`upload-${textKey}`}
-                                        className="block w-full mb-4 border border-gray-600 bg-[#2a2a2a] text-gray-100 rounded-lg p-3"
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition"
-                                    >
-                                        Submit
-                                    </button>
-                                </form>
-                            </div>
-
-                        </div>
-                    ))}
-                </div>
+                {buildCharacter(character, code, file, setFile)}
             </div>
         </div>
     );
 }
 
-export async function getTextID(textID: string) {
+async function getCharacter(textID: string): Promise<{ name: string, description: string, texts: [string], audios: [string] }> {
     // Send API request to fetch text data
+    const response = await accessProtectedAPI('iot/voice/get', {'character': textID}, `/iot/voice/${textID}`);
+    if (response.status === 404) return {name: '0', description: '', texts: [''], audios: ['']};
+    const body = await response.json();
 
-    return {
-        "text0": textID,
-        "text1": "The quick brown fox jumps over the lazy dog.",
-        "text2": "She sells seashells by the seashore.",
-        "text3": "How much wood would a woodchuck chuck if a woodchuck could chuck wood?"
+    const token = await getToken() as string; // can not be null through previouse request
+    body.audios = [];
+    for (let i = 0; i < body.texts.length; i++) {
+        body.audios[i] = await fetchMediaFile(`${API_URL}/iot/voice/audio/${textID}/${i}`, {'Authorization': token});
     }
+    console.log('Character data:', body);
+
+    return body;
+}
+
+function buildCharacter(
+    character: { name: string, description: string, texts: [string], audios: [string] },
+    code: string,
+    file: {},
+    setFile: Dispatch<SetStateAction<[string] | null>>) {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>, textKey: number) => {
+        event.preventDefault();
+        const submitButton = event.currentTarget.querySelector('button[type="submit"]') as HTMLButtonElement;
+        if (submitButton) submitButton.style.backgroundColor = '';
+        const input = event.currentTarget.querySelector(`#upload-${textKey}`) as HTMLInputElement;
+        const file = input?.files?.[0];
+
+        if (!file) {
+            console.error('No file selected!');
+            return;
+        }
+        console.log(`Uploading file for ${textKey}:`, input);
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const token = await getToken();
+            const response = await fetch(`${API_URL}/iot/voice/audio/${code}/${textKey}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                console.error('File upload failed:', response.status);
+                if (submitButton) submitButton.style.backgroundColor = 'darkred';
+                return;
+            }
+
+            console.log(`File uploaded successfully for ${textKey}`);
+            if (submitButton) submitButton.style.backgroundColor = '#15974e';
+        } catch (error) {
+            console.error('File upload failed:', error);
+            if (submitButton) submitButton.style.backgroundColor = 'red';
+        }
+    };
+
+    const handleInput = (event: React.ChangeEvent<HTMLInputElement>, textKey: number, file: {}, setFile: Dispatch<SetStateAction<{}>>) => {
+        const input = event.target.files?.[0];
+        if (input) {
+            const url = URL.createObjectURL(input);
+            console.log(`File uploaded for ${textKey}:`, url);
+            const prevFiles = { ...file };
+            prevFiles[textKey] = url;
+            setFile(prevFiles);
+        }
+    }
+
+    if (character.name === '') {
+        return <h2 className="text-3xl font-bold text-center mb-12">Loading...</h2>;
+    } else if (character.name === '0') {
+        return (
+            <div>
+                <h2 className="text-3xl font-bold text-center mb-12">Charakter nicht gefunden!</h2>
+                <p className="text-center">Möglicherweise hast du nur keinen Zugriff auf diesen Charakter</p>
+                <p className="text-center">Melde dich in diesem Fall bei @miraculixx</p>
+            </div>
+        );
+    } else return (
+        <div>
+            <h2 className="text-3xl font-bold text-center mb-12">Charakter Beschreibung</h2>
+            <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-700 mb-12">
+                <h3 className="text-2xl font-bold mb-4">{character.name}</h3>
+                <p className="font-semibold text-m">{character.description}</p>
+            </div>
+
+            <h2 className="text-3xl font-bold text-center mb-12">Verfügbare Voice Lines</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {character.texts.map((value, index) => (
+                    <div
+                        key={index}
+                        className="flex flex-col justify-between p-6 bg-[#1a1a1a] shadow-xl rounded-xl border border-gray-700 transition-transform transform hover:scale-105"
+                    >
+                        <div className="bg-[#2a2a2a] p-3 rounded-xl h-[100%] mb-4">
+                            <p className="font-semibold text-m mb-4">{value}</p>
+                        </div>
+
+                        <div>
+                            <audio
+                                controls
+                                className="mb-4 w-full rounded-lg"
+                                src={character.audios[index]}
+                            >Your browser does not support audio elements!</audio>
+                            <form
+                                onSubmit={(e) => handleSubmit(e, index)}
+                                onChange={(e) => handleInput(e, index, file, setFile)}>
+                                <div className="border border-gray-600 bg-[#2a2a2a] rounded-lg mb-4">
+                                    <input
+                                        type="file"
+                                        accept="audio/mp3, audio/wav, audio/ogg"
+                                        id={`upload-${index}`}
+                                        className="block w-full text-gray-100 p-3"
+                                    />
+                                    {file[index] && (
+                                        <audio
+                                            controls
+                                            className="w-full rounded-lg"
+                                            src={file[index]}
+                                        >Your browser does not support audio elements!</audio>
+                                    )}
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition"
+                                >Submit
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 }

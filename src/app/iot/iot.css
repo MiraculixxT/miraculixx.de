@@ -1,0 +1,4 @@
+.headline {
+    -webkit-text-stroke: 1px rgba(255,255,255, 1.0);
+    color: rgba(183, 127, 234, 0.1);
+}
