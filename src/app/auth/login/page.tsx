@@ -1,13 +1,15 @@
 'use client';
+export const dynamic = 'force-dynamic';
 import {useEffect} from "react";
-import {redirect, useSearchParams} from "next/navigation";
+import {redirect} from "next/navigation";
 import {API_URL} from "@/app/config";
 
-export default function AuthenticationRedirect() {
-    const params = useSearchParams();
-    const state = params.get("state");
 
+export default function AuthenticationRedirect() {
     useEffect(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        const state = searchParams.get("state");
+
         if (state) {
             const url = `${API_URL}/auth/login?state=${encodeURIComponent(state)}`;
             console.info("Redirecting to ", url);
@@ -15,7 +17,7 @@ export default function AuthenticationRedirect() {
         } else {
             console.error("No state parameter found in the URL");
         }
-    }, [state]);
+    }, []);
 
     return (
         <a>Redirecting...</a>

@@ -1,33 +1,28 @@
 'use client';
-import {redirect, useSearchParams} from "next/navigation";
-import {useEffect} from "react";
-import {API_URL} from "@/app/config";
 import {setToken} from "@/components/tokenCookie";
+import {redirect} from "next/navigation";
+import {useEffect} from "react";
+
 
 export default function AuthenticationCallback() {
-    const params = useSearchParams();
-    const state = params.get("state");
-    const token = params.get("token");
-
     useEffect(() => {
-        async function fetch() {
-            if (token) {
-                await setToken(token);
-            }
+        const searchParams = new URLSearchParams(window.location.search);
+        const token = searchParams.get("token");
+        const state = searchParams.get("state");
 
-            if (state) {
-                console.info("Redirecting to ", state);
-                redirect(state);
-            } else {
-                console.warn("No state parameter found in the URL");
-                redirect('/');
-            }
+        if (token) {
+            setToken(token).then(() => {
+            });
         }
 
-        fetch().then(_ => { });
-    }, [state, token]);
+        if (state) {
+            console.info("Redirecting to ", state);
+            redirect(state);
+        } else {
+            console.warn("No state parameter found in the URL");
+            redirect('/');
+        }
+    }, []);
 
-    return (
-        <a>Redirecting...</a>
-    );
+    return (<div>Loading..</div>);
 }
