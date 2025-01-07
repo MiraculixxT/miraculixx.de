@@ -29,10 +29,11 @@ export async function accessProtectedAPI(url: string, header: HeadersInit, prev:
     return response;
 }
 
-export async function fetchMediaFile(url: string, headers: HeadersInit): Promise<string> {
+export async function fetchMediaFile(url: string, headers: HeadersInit): Promise<string | null> {
     const response = await fetch(url, { headers });
     if (!response.ok) {
-        throw new Error(`Failed to fetch media file: ${response.statusText}`);
+        console.warn(`Failed to fetch media file: ${response.statusText}`);
+        return null;
     }
     const blob = await response.blob();
     return URL.createObjectURL(blob);
