@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({
-    children,
+    children
 }: Readonly<{
     children: React.ReactNode;
 }>) {
@@ -34,10 +34,11 @@ export default function RootLayout({
                 </div>
             </div>
 
-            {children}
-
+            <div className="container mx-auto px-4 py-16">
+                {children}
+            </div>
         </div>
         </body>
         </html>
-);
+    );
 }
