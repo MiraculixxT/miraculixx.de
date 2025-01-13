@@ -8,9 +8,9 @@ import {getToken} from "@/components/tokenCookie";
 export default function VoiceActingSubmission({params}: {
     params: Promise<{ code: string }>
 }) {
-    const [character, setCharacter] = useState<{name: string, description: string, texts: [string], audios: [string]}>({name: '', description: '', texts: [''], audios: ['']});
+    const [character, setCharacter] = useState<{ name: string, description: string, texts: [string], audios: [string] }>({name: '', description: '', texts: [''], audios: ['']});
     const [code, setCode] = useState<string>('');
-    const [file, setFile] = useState<{}>({});
+    const [file, setFile] = useState<[string] | []>([]);
 
     useEffect(() => {
         async function fetchData() {
@@ -20,17 +20,13 @@ export default function VoiceActingSubmission({params}: {
             setCode(code);
         }
 
-        fetchData().then(r => {
-        });
+        fetchData().then(() => {});
     }, [params]);
 
     return (
         <div className="min-h-screen bg-[#0d0d0d] text-gray-100">
-
             {/* Main Content */}
-            <div className="container mx-auto px-4 py-16">
-                {buildCharacter(character, code, file, setFile)}
-            </div>
+            {buildCharacter(character, code, file, setFile)}
         </div>
     );
 }
@@ -54,8 +50,8 @@ async function getCharacter(textID: string): Promise<{ name: string, description
 function buildCharacter(
     character: { name: string, description: string, texts: [string], audios: [string] },
     code: string,
-    file: {},
-    setFile: Dispatch<SetStateAction<[string] | null>>) {
+    file: [string] | [],
+    setFile: Dispatch<SetStateAction<[string] | []>>) {
     const handleSubmit = async (event: FormEvent<HTMLFormElement>, textKey: number) => {
         event.preventDefault();
         const submitButton = event.currentTarget.querySelector('button[type="submit"]') as HTMLButtonElement;
@@ -83,7 +79,7 @@ function buildCharacter(
             });
 
             if (!response.ok) {
-                console.error('File upload failed:', response.status);
+                console.warn('File upload failed:', response.status);
                 if (submitButton) submitButton.style.backgroundColor = 'darkred';
                 return;
             }
@@ -91,86 +87,93 @@ function buildCharacter(
             console.log(`File uploaded successfully for ${textKey}`);
             if (submitButton) submitButton.style.backgroundColor = '#15974e';
         } catch (error) {
-            console.error('File upload failed:', error);
+            console.warn('File upload failed:', error);
             if (submitButton) submitButton.style.backgroundColor = 'red';
         }
     };
 
-    const handleInput = (event: React.ChangeEvent<HTMLInputElement>, textKey: number, file: {}, setFile: Dispatch<SetStateAction<{}>>) => {
+    const handleInput = (e: FormEvent<HTMLFormElement>, textKey: number, file: [string] | [], setFile: React.Dispatch<React.SetStateAction<[string] | []>>) => {
+        const event = e as unknown as React.ChangeEvent<HTMLInputElement>;
         const input = event.target.files?.[0];
         if (input) {
             const url = URL.createObjectURL(input);
             console.log(`File uploaded for ${textKey}:`, url);
-            const prevFiles = { ...file };
+            const prevFiles = {...file};
             prevFiles[textKey] = url;
             setFile(prevFiles);
         }
     }
 
-    if (character.name === '') {
-        return <h2 className="text-3xl font-bold text-center mb-12">Loading...</h2>;
-    } else if (character.name === '0') {
-        return (
-            <div>
-                <h2 className="text-3xl font-bold text-center mb-12">Charakter nicht gefunden!</h2>
-                <p className="text-center">Möglicherweise hast du nur keinen Zugriff auf diesen Charakter</p>
-                <p className="text-center">Melde dich in diesem Fall bei @miraculixx</p>
-            </div>
-        );
-    } else return (
-        <div>
-            <h2 className="text-3xl font-bold text-center mb-12">Charakter Beschreibung</h2>
-            <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-700 mb-12">
-                <h3 className="text-2xl font-bold mb-4">{character.name}</h3>
-                <p className="font-semibold text-m">{character.description}</p>
-            </div>
-
-            <h2 className="text-3xl font-bold text-center mb-12">Verfügbare Voice Lines</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {character.texts.map((value, index) => (
-                    <div
-                        key={index}
-                        className="flex flex-col justify-between p-6 bg-[#1a1a1a] shadow-xl rounded-xl border border-gray-700 transition-transform transform hover:scale-105"
-                    >
-                        <div className="bg-[#2a2a2a] p-3 rounded-xl h-[100%] mb-4">
-                            <p className="font-semibold text-m mb-4">{value}</p>
-                        </div>
-
-                        <div>
-                            <audio
-                                controls
-                                className="mb-4 w-full rounded-lg"
-                                src={character.audios[index]}
-                            >Your browser does not support audio elements!</audio>
-                            <form
-                                onSubmit={(e) => handleSubmit(e, index)}
-                                onChange={(e) => handleInput(e, index, file, setFile)}>
-                                <div className="border border-gray-600 bg-[#2a2a2a] rounded-lg mb-4">
-                                    <input
-                                        type="file"
-                                        accept="audio/mp3, audio/wav, audio/ogg"
-                                        id={`upload-${index}`}
-                                        className="block w-full text-gray-100 p-3"
-                                    />
-                                    {file[index] && (
-                                        <audio
-                                            controls
-                                            className="w-full rounded-lg"
-                                            src={file[index]}
-                                        >Your browser does not support audio elements!</audio>
-                                    )}
-                                </div>
-                                <button
-                                    type="submit"
-                                    className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition"
-                                >Submit
-                                </button>
-                            </form>
-                        </div>
-
+    switch (character.name) {
+        case '-1':
+            return <h2 className="text-3xl font-bold text-center mb-12">API currently not reachable!</h2>;
+        case '':
+            return <h2 className="text-3xl font-bold text-center mb-12">Loading...</h2>;
+        case '0':
+            return (
+                <div>
+                    <h2 className="text-3xl font-bold text-center mb-12">Charakter nicht gefunden!</h2>
+                    <p className="text-center">Möglicherweise hast du nur keinen Zugriff auf diesen Charakter</p>
+                    <p className="text-center">Melde dich in diesem Fall bei @miraculixx</p>
+                </div>
+            );
+        default:
+            return (
+                <div>
+                    <h2 className="text-3xl font-bold text-center mb-12">Charakter Beschreibung</h2>
+                    <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-700 mb-12">
+                        <h3 className="text-2xl font-bold mb-4">{character.name}</h3>
+                        <p className="font-semibold text-m">{character.description}</p>
                     </div>
-                ))}
-            </div>
-        </div>
-    );
+
+                    <h2 className="text-3xl font-bold text-center mb-12">Verfügbare Voice Lines</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {character.texts.map((value, index) => (
+                            <div
+                                key={index}
+                                className="flex flex-col justify-between p-6 bg-[#1a1a1a] shadow-xl rounded-xl border border-gray-700 transition-transform transform hover:scale-105"
+                            >
+                                <div className="bg-[#2a2a2a] p-3 rounded-xl h-[100%] mb-4">
+                                    <p className="font-semibold text-m mb-4">{value}</p>
+                                </div>
+
+                                <div>
+                                    <audio
+                                        controls
+                                        className="mb-4 w-full rounded-lg"
+                                        src={character.audios[index]}
+                                    >Your browser does not support audio elements!
+                                    </audio>
+                                    <form
+                                        onSubmit={(e) => handleSubmit(e, index)}
+                                        onChange={(e) => handleInput(e, index, file, setFile)}>
+                                        <div className="border border-gray-600 bg-[#2a2a2a] rounded-lg mb-4">
+                                            <input
+                                                type="file"
+                                                accept="audio/mp3, audio/wav, audio/ogg"
+                                                id={`upload-${index}`}
+                                                className="block w-full text-gray-100 p-3"
+                                            />
+                                            {file[index] && (
+                                                <audio
+                                                    controls
+                                                    className="w-full rounded-lg"
+                                                    src={file[index]}
+                                                >Your browser does not support audio elements!</audio>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition"
+                                        >Submit
+                                        </button>
+                                    </form>
+                                </div>
+
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+    }
 }

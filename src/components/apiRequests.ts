@@ -2,7 +2,13 @@ import {redirect} from "next/navigation";
 import {getToken} from "./tokenCookie";
 import {API_URL} from "@/app/config";
 
-export async function accessProtectedAPI(url: string, header: HeadersInit, prev: string): Promise<Response> {
+export async function accessProtectedAPI(
+    url: string,
+    header: HeadersInit,
+    prev: string,
+    method: string = 'GET',
+    body: string | null = null
+): Promise<Response> {
     function authenticate() {
         const state = encodeURIComponent(prev);
         const authUrl = `/auth/login?state=${state}`;
@@ -19,7 +25,9 @@ export async function accessProtectedAPI(url: string, header: HeadersInit, prev:
     const finalHeaders = new Headers(header);
     if (token) finalHeaders.append('Authorization', token);
     const response = await fetch(`${API_URL}/${url}`, {
-        headers: finalHeaders
+        headers: finalHeaders,
+        method: method,
+        body: body
     });
 
     if (response.status == 401) {
