@@ -1,5 +1,5 @@
 'use client';
-import React, {Dispatch, FormEvent, SetStateAction} from "react";
+import React, {Dispatch, FormEvent, SetStateAction, useRef} from "react";
 import {useEffect, useState} from 'react';
 import {accessProtectedAPI, fetchMediaFile} from "@/components/apiRequests";
 import {API_URL} from "@/app/config";
@@ -11,6 +11,7 @@ export default function VoiceActingSubmission({params}: {
     const [character, setCharacter] = useState<{ name: string, description: string, texts: [string], audios: [string] }>({name: '', description: '', texts: [''], audios: ['']});
     const [code, setCode] = useState<string>('');
     const [file, setFile] = useState<[string] | []>([]);
+    const isEnglish = useRef<boolean>(false);
 
     useEffect(() => {
         async function fetchData() {
@@ -18,6 +19,7 @@ export default function VoiceActingSubmission({params}: {
             const char = await getCharacter(code);
             setCharacter(char);
             setCode(code);
+            isEnglish.current = code.endsWith('-en');
         }
 
         fetchData().then(() => {});
@@ -27,6 +29,18 @@ export default function VoiceActingSubmission({params}: {
         <div className="min-h-screen bg-[#0d0d0d] text-gray-100">
             {/* Main Content */}
             {buildCharacter(character, code, file, setFile)}
+            {
+                isEnglish && character.description !== '' && (
+                    <div className="flex flex-col items-center bg-[#1a1a1a] p-6 rounded-xl border border-gray-700 mt-20">
+                        <p className="font-semibold text-m">In der Zukunft planen wir die Map frei hochzuladen in Deutsch & Englisch.
+                            Wenn du möchtest, kannst du auch die englischen Texte einsprechen :)</p>
+                        <a
+                            href={`/iot/voice/${code}-en`}
+                            className="bg-purple-600 text-white py-3 px-6 mt-2 rounded-lg hover:bg-purple-700 transition"
+                        >Sprache Wechseln</a>
+                    </div>
+                )
+            }
         </div>
     );
 }
@@ -112,9 +126,9 @@ function buildCharacter(
         case '0':
             return (
                 <div>
-                    <h2 className="text-3xl font-bold text-center mb-12">Charakter nicht gefunden!</h2>
-                    <p className="text-center">Möglicherweise hast du nur keinen Zugriff auf diesen Charakter</p>
-                    <p className="text-center">Melde dich in diesem Fall bei @miraculixx</p>
+                    <h2 className="text-3xl font-bold text-center mb-12">{"Charakter nicht gefunden!"}</h2>
+                    <p className="text-center">{"Möglicherweise hast du nur keinen Zugriff auf diesen Charakter"}</p>
+                    <p className="text-center">{"Melde dich in diesem Fall bei @miraculixx"}</p>
                 </div>
             );
         default:
