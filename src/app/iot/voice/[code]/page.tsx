@@ -154,6 +154,8 @@ function buildCharacter(
                                 <div>
                                     <audio
                                         controls
+                                        preload="none"
+                                        crossOrigin="anonymous"
                                         className="mb-4 w-full rounded-lg"
                                         src={character.audios[index]}
                                     >Your browser does not support audio elements!
@@ -171,6 +173,8 @@ function buildCharacter(
                                             {file[index] && (
                                                 <audio
                                                     controls
+                                                    preload="none"
+                                                    crossOrigin="anonymous"
                                                     className="w-full rounded-lg"
                                                     src={file[index]}
                                                 >Your browser does not support audio elements!</audio>
