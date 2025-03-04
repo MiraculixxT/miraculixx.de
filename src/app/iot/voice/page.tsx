@@ -141,7 +141,7 @@ function listCharacters(
         );
     });
     const header = document.getElementById('state-header');
-    if (header) header.innerText = 'Alle verfügbaren Charaktere';
+    if (header) header.innerText = 'Character Overview';
     return structure;
 }
 
@@ -160,7 +160,7 @@ async function loadVoices(
 
     for (let i = 0; i < voiceAmount; i++) {
         voiceData.examples[i] = await fetchMediaFile(`${API_URL}/iot/voice/audio/${charID}/${i}`, {"Authorization": `${token}`}) || "";
-        voiceData.submissions[i] = await fetchMediaFile(`${API_URL}/iot/voice/audi/submits/${charID}/${i}`, {"Authorization": `${token}`}) || "";
+        voiceData.submissions[i] = await fetchMediaFile(`${API_URL}/iot/voice/audio/submits/${charID}/${i}`, {"Authorization": `${token}`}) || "";
     }
 
     console.log(voiceData);
