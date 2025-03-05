@@ -77,6 +77,15 @@ function buildCharacter(
             console.error('No file selected!');
             return;
         }
+
+        const fileName = file.name;
+        if (!fileName.endsWith(".mp3") && !fileName.endsWith(".ogg")) {
+            console.error('Invalid file format!');
+            alert('Invalid file format! Please only upload a .mp3 or .ogg file.');
+            if (submitButton) submitButton.style.backgroundColor = 'red';
+            return;
+        }
+
         console.log(`Uploading file for ${textKey}:`, input);
 
         const formData = new FormData();
@@ -87,7 +96,8 @@ function buildCharacter(
             const response = await fetch(`${API_URL}/iot/voice/audio/${code}/${textKey}`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `${token}`
+                    'Authorization': `${token}`,
+                    'AudioType': fileName.substring(fileName.lastIndexOf('.') + 1)
                 },
                 body: formData
             });
@@ -165,7 +175,7 @@ function buildCharacter(
                                         <div className="border border-gray-600 bg-[#2a2a2a] rounded-lg mb-4">
                                             <input
                                                 type="file"
-                                                accept="audio/mp3, audio/wav, audio/ogg"
+                                                accept="audio/mp3, audio/ogg"
                                                 id={`upload-${index}`}
                                                 className="block w-full text-gray-100 p-3"
                                             />
