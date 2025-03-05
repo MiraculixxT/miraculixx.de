@@ -25,6 +25,7 @@ export default function RootLayout({
                     layout="fill"
                     className="z-0"
                     priority={true}
+                    quality={90}
                     style={{maskImage: "linear-gradient(180deg,#000,transparent)", opacity: 0.8, objectFit: "cover", objectPosition: "center"}}
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
