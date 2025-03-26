@@ -33,11 +33,8 @@ export default function VoiceActingSubmission({params}: {
                 isEnglish && character.description !== '' && (
                     <div className="flex flex-col items-center bg-[#1a1a1a] p-6 rounded-xl border border-gray-700 mt-20">
                         <p className="font-semibold text-m">In der Zukunft planen wir die Map frei hochzuladen in Deutsch & Englisch.
-                            Wenn du möchtest, kannst du auch die englischen Texte einsprechen :)</p>
-                        <a
-                            href={`/iot/voice/${code}-en`}
-                            className="bg-purple-600 text-white py-3 px-6 mt-2 rounded-lg hover:bg-purple-700 transition"
-                        >Sprache Wechseln</a>
+                            Wenn du möchtest, kannst du auch die englischen Texte einsprechen :)</p><br/>
+                        <p className="font-semibold text-m">Melde dich dazu einfach beim Team</p>
                     </div>
                 )
             }
