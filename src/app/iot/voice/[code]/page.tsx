@@ -196,6 +196,26 @@ function buildCharacter(
                             </div>
                         ))}
                     </div>
+                    <div className="flex flex-col items-center bg-[#1a1a1a] p-6 rounded-xl border border-gray-700 mt-20">
+                        <p className="font-semibold text-m text-center">Wenn du optionale Alternativen zu den Einsendungen geben möchtest, kannst du eine ungeschnittene Datei hier hochladen.
+                        </p>
+                        <form onSubmit={(e) => handleSubmit(e, -1)}>
+                            <div className="border border-gray-600 bg-[#2a2a2a] rounded-t-lg mt-2">
+                                <input
+                                    type="file"
+                                    accept="audio/mp3, audio/ogg"
+                                    id={`upload--1`}
+                                    className="block w-full text-gray-100 p-3"
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                className="bg-purple-600 text-white py-3 rounded-b-lg hover:bg-purple-700 transition"
+                                style={{width: '80vh'}}
+                            >Submit
+                            </button>
+                        </form>
+                    </div>
                 </div>
             );
     }
