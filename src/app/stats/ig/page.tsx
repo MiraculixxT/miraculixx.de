@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Area,
   AreaChart,
@@ -30,31 +31,44 @@ function toLocalDateString(date: Date) {
 }
 
 export default function InstantGamingDashboard() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [mounted, setMounted] = useState(false);
   const [meta, setMeta] = useState<MetaResponse | null>(null);
   const [points, setPoints] = useState<OverviewPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [interval, setInterval] = useState<Interval>("day");
-  const [platform, setPlatform] = useState("all");
-  const [includeDlc, setIncludeDlc] = useState(false);
-  const [includePreorder, setIncludePreorder] = useState(false);
+  const [from, setFrom] = useState(() => searchParams.get("from") ?? "");
+  const [to, setTo] = useState(() => searchParams.get("to") ?? "");
+  const [interval, setInterval] = useState<Interval>(
+    () => (searchParams.get("interval") as Interval) ?? "day",
+  );
+  const [platform, setPlatform] = useState(() => searchParams.get("platform") ?? "all");
+  const [includeDlc, setIncludeDlc] = useState(() => searchParams.get("dlc") === "1");
+  const [includePreorder, setIncludePreorder] = useState(() => searchParams.get("preorder") === "1");
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const start = new Date(now);
-    start.setDate(start.getDate() - DEFAULT_FROM_OFFSET);
-
-    setFrom(toLocalDateString(start));
-    setTo(toLocalDateString(now));
+    setFrom((current) => {
+      if (current) return current;
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const start = new Date(now);
+      start.setDate(start.getDate() - DEFAULT_FROM_OFFSET);
+      return toLocalDateString(start);
+    });
+    setTo((current) => {
+      if (current) return current;
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      return toLocalDateString(now);
+    });
 
     const controller = new AbortController();
     fetchMeta(controller.signal)
@@ -63,6 +77,29 @@ export default function InstantGamingDashboard() {
 
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const defaultTo = toLocalDateString(now);
+    const start = new Date(now);
+    start.setDate(start.getDate() - DEFAULT_FROM_OFFSET);
+    const defaultFrom = toLocalDateString(start);
+
+    const params = new URLSearchParams();
+    if (from && from !== defaultFrom) params.set("from", from);
+    if (to && to !== defaultTo) params.set("to", to);
+    if (interval !== "day") params.set("interval", interval);
+    if (platform !== "all") params.set("platform", platform);
+    if (includeDlc) params.set("dlc", "1");
+    if (includePreorder) params.set("preorder", "1");
+
+    const qs = params.toString();
+    const next = qs ? `${pathname}?${qs}` : pathname;
+    if (`${window.location.pathname}${window.location.search}` !== next) {
+      router.replace(next, { scroll: false });
+    }
+  }, [from, to, interval, platform, includeDlc, includePreorder, pathname, router]);
 
   useEffect(() => {
     if (!from || !to) {

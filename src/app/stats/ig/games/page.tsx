@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   CartesianGrid,
   Legend,
@@ -36,6 +37,10 @@ function formatMoney(value: number) {
 
 
 export default function InstantGamingGamesPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [meta, setMeta] = useState<MetaResponse | null>(null);
   const [data, setData] = useState<GamesResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,25 +51,59 @@ export default function InstantGamingGamesPage() {
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [bannerIndex, setBannerIndex] = useState(0);
 
-  const [snapshotTs, setSnapshotTs] = useState("");
-  const [search, setSearch] = useState("");
-  const [platform, setPlatform] = useState("all");
-  const [sortBy, setSortBy] = useState<GameSortField>("discount");
-  const [sortDir, setSortDir] = useState<SortDirection>("desc");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [snapshotTs, setSnapshotTs] = useState(() => searchParams.get("date") ?? "");
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
+  const [platform, setPlatform] = useState(() => searchParams.get("platform") ?? "all");
+  const [sortBy, setSortBy] = useState<GameSortField>(
+    () => (searchParams.get("sortBy") as GameSortField) ?? "discount",
+  );
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    () => (searchParams.get("sortDir") as SortDirection) ?? "desc",
+  );
+  const [page, setPage] = useState(() => Number(searchParams.get("page")) || 1);
+  const [pageSize, setPageSize] = useState(() => Number(searchParams.get("pageSize")) || 50);
+
+  const pendingGameIdRef = useRef<string | null>(searchParams.get("game"));
 
   useEffect(() => {
     const controller = new AbortController();
     fetchMeta(controller.signal)
       .then((response) => {
         setMeta(response);
-        setSnapshotTs(response.latestSnapshotTs.slice(0, 10));
+        setSnapshotTs((current) => current || response.latestSnapshotTs.slice(0, 10));
       })
       .catch(() => setError("Could not load metadata"));
 
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    const defaultDate = meta?.latestSnapshotTs.slice(0, 10);
+    if (snapshotTs && snapshotTs !== defaultDate) params.set("date", snapshotTs);
+    if (search) params.set("q", search);
+    if (platform !== "all") params.set("platform", platform);
+    if (sortBy !== "discount") params.set("sortBy", sortBy);
+    if (sortDir !== "desc") params.set("sortDir", sortDir);
+    if (page !== 1) params.set("page", String(page));
+    if (pageSize !== 50) params.set("pageSize", String(pageSize));
+    if (selectedGame) params.set("game", String(selectedGame.prodId));
+    else if (pendingGameIdRef.current) params.set("game", pendingGameIdRef.current);
+
+    const qs = params.toString();
+    const next = qs ? `${pathname}?${qs}` : pathname;
+    if (`${window.location.pathname}${window.location.search}` !== next) {
+      router.replace(next, { scroll: false });
+    }
+  }, [snapshotTs, search, platform, sortBy, sortDir, page, pageSize, selectedGame, pathname, router, meta]);
+
+  useEffect(() => {
+    const pending = pendingGameIdRef.current;
+    if (!pending || !data?.rows?.length) return;
+    const match = data.rows.find((row) => String(row.prodId) === pending);
+    if (match) setSelectedGame(match);
+    pendingGameIdRef.current = null;
+  }, [data]);
 
   useEffect(() => {
     if (!snapshotTs) {
