@@ -54,9 +54,10 @@ function InstantGamingDashboardInner() {
   const [interval, setInterval] = useState<Interval>(
     () => (searchParams.get("interval") as Interval) ?? "day",
   );
-  const [platform, setPlatform] = useState(() => searchParams.get("platform") ?? "all");
-  const [includeDlc, setIncludeDlc] = useState(() => searchParams.get("dlc") === "1");
+  const [type, setType] = useState(() => searchParams.get("type") ?? "all");
+  const [onlyTopseller, setOnlyTopseller] = useState(() => searchParams.get("topseller") === "1");
   const [includePreorder, setIncludePreorder] = useState(() => searchParams.get("preorder") === "1");
+  const [includeGiftcard, setIncludeGiftcard] = useState(() => searchParams.get("giftcard") === "1");
 
   useEffect(() => {
     setMounted(true);
@@ -98,16 +99,17 @@ function InstantGamingDashboardInner() {
     if (from && from !== defaultFrom) params.set("from", from);
     if (to && to !== defaultTo) params.set("to", to);
     if (interval !== "day") params.set("interval", interval);
-    if (platform !== "all") params.set("platform", platform);
-    if (includeDlc) params.set("dlc", "1");
+    if (type !== "all") params.set("type", type);
+    if (onlyTopseller) params.set("topseller", "1");
     if (includePreorder) params.set("preorder", "1");
+    if (includeGiftcard) params.set("giftcard", "1");
 
     const qs = params.toString();
     const next = qs ? `${pathname}?${qs}` : pathname;
     if (`${window.location.pathname}${window.location.search}` !== next) {
       router.replace(next, { scroll: false });
     }
-  }, [from, to, interval, platform, includeDlc, includePreorder, pathname, router]);
+  }, [from, to, interval, type, onlyTopseller, includePreorder, includeGiftcard, pathname, router]);
 
   useEffect(() => {
     if (!from || !to) {
@@ -119,9 +121,10 @@ function InstantGamingDashboardInner() {
       from,
       to,
       interval,
-      platform,
-      includeDlc,
+      type,
+      onlyTopseller,
       includePreorder,
+      includeGiftcard,
     };
 
     setLoading(true);
@@ -133,7 +136,7 @@ function InstantGamingDashboardInner() {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [from, to, interval, platform, includeDlc, includePreorder]);
+  }, [from, to, interval, type, onlyTopseller, includePreorder, includeGiftcard]);
 
   const latest = useMemo(() => points[points.length - 1], [points]);
 
@@ -171,14 +174,14 @@ function InstantGamingDashboardInner() {
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Platform
+          Type
           <select
             className="h-10 rounded-md border border-slate-700 bg-slate-950 px-3"
-            value={platform}
-            onChange={(event) => setPlatform(event.target.value)}
+            value={type}
+            onChange={(event) => setType(event.target.value)}
           >
-            <option value="all">All platforms</option>
-            {meta?.platforms.map((entry) => (
+            <option value="all">All types</option>
+            {meta?.types.map((entry) => (
               <option key={entry} value={entry}>
                 {entry}
               </option>
@@ -189,19 +192,30 @@ function InstantGamingDashboardInner() {
           <input
             type="checkbox"
             className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-900 accent-indigo-500"
-            checked={includeDlc}
-            onChange={(event) => setIncludeDlc(event.target.checked)}
+            checked={onlyTopseller}
+            onChange={(event) => setOnlyTopseller(event.target.checked)}
           />
-          Include DLC
+          Only topseller
         </label>
         <label className="flex h-10 cursor-pointer items-center gap-2 self-end rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white">
           <input
             type="checkbox"
             className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-900 accent-indigo-500"
             checked={includePreorder}
+            disabled={onlyTopseller}
             onChange={(event) => setIncludePreorder(event.target.checked)}
           />
           Include preorder
+        </label>
+        <label className="flex h-10 cursor-pointer items-center gap-2 self-end rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white">
+          <input
+            type="checkbox"
+            className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-900 accent-indigo-500"
+            checked={includeGiftcard}
+            disabled={onlyTopseller}
+            onChange={(event) => setIncludeGiftcard(event.target.checked)}
+          />
+          Include giftcard
         </label>
       </div>
 

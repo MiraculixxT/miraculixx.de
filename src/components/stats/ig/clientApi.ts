@@ -37,9 +37,10 @@ export async function fetchOverview(query: OverviewQuery, signal?: AbortSignal):
     from: query.from,
     to: query.to,
     interval: query.interval,
-    platform: query.platform,
-    includeDlc: query.includeDlc,
+    type: query.type,
+    onlyTopseller: query.onlyTopseller,
     includePreorder: query.includePreorder,
+    includeGiftcard: query.includeGiftcard,
   });
 
   const response = await fetch(path, { signal, cache: "no-store" });
@@ -52,11 +53,12 @@ export async function fetchOverview(query: OverviewQuery, signal?: AbortSignal):
 export async function fetchGames(query: GamesQuery, signal?: AbortSignal): Promise<GamesResponse> {
   const path = withSearchParams("games", {
     snapshotTs: query.snapshotTs,
-    platform: query.platform,
+    type: query.type,
     search: query.search,
-    prepaid: query.prepaid,
-    isDlc: query.isDlc,
     preorder: query.preorder,
+    giftcard: query.giftcard,
+    topseller: query.topseller,
+    inStock: query.inStock,
     sortBy: query.sortBy,
     sortDir: query.sortDir,
     page: query.page,
@@ -72,7 +74,7 @@ export async function fetchGames(query: GamesQuery, signal?: AbortSignal): Promi
 
 export async function fetchGameHistory(query: GameHistoryQuery, signal?: AbortSignal): Promise<GameHistoryResponse> {
   const path = withSearchParams("games/history", {
-    prodId: query.prodId,
+    id: query.id,
     from: query.from,
     to: query.to,
   });
@@ -83,4 +85,3 @@ export async function fetchGameHistory(query: GameHistoryQuery, signal?: AbortSi
   }
   return response.json();
 }
-

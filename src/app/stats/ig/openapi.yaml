@@ -1,8 +1,19 @@
 openapi: 3.1.0
 info:
   title: Miraculixx Instant Gaming Stats API
-  version: 1.0.0
-  description: External API contract used by the Next.js Instant Gaming analytics frontend.
+  version: 2.0.0
+  description: |
+    External API contract used by the Next.js Instant Gaming analytics frontend.
+
+    ## BREAKING CHANGES in 2.0.0 (official IG API migration)
+    - The underlying data model was split into stable `game_meta` + time-series `snapshot_prices`.
+    - `platform` is renamed to `type` everywhere (meta, overview, games).
+    - Removed fields on game rows: `isDlc`, `isSub`, `isPrepaid`, `seoName`, `hasStock`, `prodId`, `platform`.
+    - New fields on game rows: `id`, `type`, `url`, `categories`, `description`, `topseller`, `giftcard`, `inStock`, `steamId`.
+    - `MetaResponse.platforms` -> `MetaResponse.types`.
+    - **Overview filters changed**: `includeDlc` is removed. Added `onlyTopseller` (default `false`; when `true`, overrides `includePreorder` / `includeGiftcard` and returns only topseller games). Added `includeGiftcard` (default `false`, giftcards are excluded by default).
+    - **Games filters changed**: removed `prepaid`, `isDlc`; added `giftcard`, `topseller`, `inStock`. `preorder` remains.
+    - History endpoint: request parameter `prodId` is deprecated; use `id` instead (`prodId` still accepted for one release). Response: `seoName` removed, `type` and `url` added.
 servers:
   - url: https://api.miraculixx.de
     description: Production
@@ -24,13 +35,17 @@ paths:
     get:
       summary: Fetch aggregated time-series overview metrics
       operationId: getStatsIgOverview
+      description: |
+        Aggregated series over a date range.
+        **Changed in 2.0.0**: `includeDlc` removed. Added `onlyTopseller` and `includeGiftcard`.
       parameters:
         - $ref: '#/components/parameters/From'
         - $ref: '#/components/parameters/To'
         - $ref: '#/components/parameters/Interval'
-        - $ref: '#/components/parameters/Platform'
-        - $ref: '#/components/parameters/IncludeDlc'
+        - $ref: '#/components/parameters/Type'
+        - $ref: '#/components/parameters/OnlyTopseller'
         - $ref: '#/components/parameters/IncludePreorder'
+        - $ref: '#/components/parameters/IncludeGiftcard'
       responses:
         '200':
           description: Overview series payload
@@ -40,17 +55,66 @@ paths:
                 $ref: '#/components/schemas/OverviewResponse'
         default:
           $ref: '#/components/responses/ErrorResponse'
+  /stats/ig/games/history:
+    get:
+      summary: Fetch price/discount history for a single game
+      operationId: getStatsIgGamesHistory
+      description: |
+        Price history for a single game by `id`.
+        **Changed in 2.0.0**: `prodId` renamed to `id` (old name still accepted). Response drops `seoName` and adds `type`, `url`.
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Game ID to fetch history for.
+        - name: prodId
+          in: query
+          required: false
+          deprecated: true
+          schema:
+            type: integer
+          description: Deprecated alias for `id`. Will be removed in a future release.
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date in YYYY-MM-DD (inclusive).
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date in YYYY-MM-DD (inclusive).
+      responses:
+        '200':
+          description: Game history payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameHistoryResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /stats/ig/games:
     get:
       summary: Fetch paginated game rows for a snapshot
       operationId: getStatsIgGames
+      description: |
+        Paginated games list for a snapshot.
+        **Changed in 2.0.0**: filters `prepaid` and `isDlc` removed; `giftcard`, `topseller`, `inStock` added.
+        Row payload is broader — see `GameRow`.
       parameters:
         - $ref: '#/components/parameters/SnapshotTs'
-        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/Type'
         - $ref: '#/components/parameters/Search'
-        - $ref: '#/components/parameters/Prepaid'
-        - $ref: '#/components/parameters/IsDlc'
         - $ref: '#/components/parameters/Preorder'
+        - $ref: '#/components/parameters/Giftcard'
+        - $ref: '#/components/parameters/Topseller'
+        - $ref: '#/components/parameters/InStock'
         - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/SortDir'
         - $ref: '#/components/parameters/Page'
@@ -62,23 +126,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GamesResponse'
-        default:
-          $ref: '#/components/responses/ErrorResponse'
-  /stats/ig/games/history:
-    get:
-      summary: Fetch one game's historical price and discount points
-      operationId: getStatsIgGameHistory
-      parameters:
-        - $ref: '#/components/parameters/ProdId'
-        - $ref: '#/components/parameters/HistoryFrom'
-        - $ref: '#/components/parameters/HistoryTo'
-      responses:
-        '200':
-          description: Historical series for one game
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GameHistoryResponse'
         default:
           $ref: '#/components/responses/ErrorResponse'
 components:
@@ -106,25 +153,45 @@ components:
       schema:
         $ref: '#/components/schemas/Interval'
       description: Aggregation step.
-    Platform:
-      name: platform
+    Type:
+      name: type
       in: query
       required: false
       schema:
         type: string
-      description: Platform filter or all.
-    IncludeDlc:
-      name: includeDlc
+        default: all
+      description: |
+        Game type filter (e.g. "Steam", "Origin", "giftcard") or `all`.
+        **New in 2.0.0** — replaces the previous `platform` parameter.
+    OnlyTopseller:
+      name: onlyTopseller
       in: query
       required: false
       schema:
         type: boolean
+        default: false
+      description: |
+        **New in 2.0.0.** When `true`, only topseller games are considered and
+        the `includePreorder` / `includeGiftcard` flags are ignored.
     IncludePreorder:
       name: includePreorder
       in: query
       required: false
       schema:
         type: boolean
+        default: true
+      description: Include preorder games in aggregations. Ignored when `onlyTopseller=true`.
+    IncludeGiftcard:
+      name: includeGiftcard
+      in: query
+      required: false
+      schema:
+        type: boolean
+        default: false
+      description: |
+        **New in 2.0.0.** Include giftcard entries in aggregations.
+        Defaults to `false` — giftcards are excluded unless explicitly requested.
+        Ignored when `onlyTopseller=true`.
     SnapshotTs:
       name: snapshotTs
       in: query
@@ -139,25 +206,35 @@ components:
       required: false
       schema:
         type: string
-    Prepaid:
-      name: prepaid
-      in: query
-      required: false
-      schema:
-        type: boolean
-      description: Unified prepaid flag where subscription entries are treated as prepaid.
-    IsDlc:
-      name: isDlc
-      in: query
-      required: false
-      schema:
-        type: boolean
+      description: Free-text search over game name.
     Preorder:
       name: preorder
       in: query
       required: false
       schema:
         type: boolean
+      description: Filter by preorder flag.
+    Giftcard:
+      name: giftcard
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: '**New in 2.0.0.** Filter by giftcard flag.'
+    Topseller:
+      name: topseller
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: '**New in 2.0.0.** Filter by topseller flag.'
+    InStock:
+      name: inStock
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: '**New in 2.0.0.** Filter by current stock availability.'
     SortBy:
       name: sortBy
       in: query
@@ -187,30 +264,6 @@ components:
         minimum: 1
         maximum: 200
         default: 50
-    ProdId:
-      name: prodId
-      in: query
-      required: true
-      schema:
-        type: integer
-        minimum: 1
-      description: Instant Gaming product identifier.
-    HistoryFrom:
-      name: from
-      in: query
-      required: false
-      schema:
-        type: string
-        format: date
-      description: Optional lower bound date in YYYY-MM-DD.
-    HistoryTo:
-      name: to
-      in: query
-      required: false
-      schema:
-        type: string
-        format: date
-      description: Optional upper bound date in YYYY-MM-DD.
   responses:
     ErrorResponse:
       description: API error payload
@@ -230,12 +283,14 @@ components:
       enum: [discount, absDiscount, price, retail, name]
     MetaResponse:
       type: object
-      required: [platforms, earliestSnapshotTs, latestSnapshotTs, supportedIntervals]
+      required: [types, earliestSnapshotTs, latestSnapshotTs, supportedIntervals]
+      description: '**Changed in 2.0.0**: `platforms` renamed to `types`.'
       properties:
-        platforms:
+        types:
           type: array
           items:
             type: string
+          description: Distinct `type` values (formerly `platforms`).
         earliestSnapshotTs:
           type: string
           format: date-time
@@ -248,7 +303,8 @@ components:
             $ref: '#/components/schemas/Interval'
     OverviewQuery:
       type: object
-      required: [from, to, interval, platform, includeDlc, includePreorder]
+      required: [from, to, interval, type, onlyTopseller, includePreorder, includeGiftcard]
+      description: '**Changed in 2.0.0**: `platform`→`type`; `includeDlc` removed; `onlyTopseller` and `includeGiftcard` added.'
       properties:
         from:
           type: string
@@ -258,11 +314,13 @@ components:
           format: date
         interval:
           $ref: '#/components/schemas/Interval'
-        platform:
+        type:
           type: string
-        includeDlc:
+        onlyTopseller:
           type: boolean
         includePreorder:
+          type: boolean
+        includeGiftcard:
           type: boolean
     OverviewPoint:
       type: object
@@ -305,20 +363,23 @@ components:
             $ref: '#/components/schemas/OverviewPoint'
     GamesQuery:
       type: object
-      required: [snapshotTs, platform, sortBy, sortDir, page, pageSize]
+      required: [snapshotTs, type, sortBy, sortDir, page, pageSize]
+      description: '**Changed in 2.0.0**: `platform`→`type`; `prepaid`/`isDlc` removed; `giftcard`/`topseller`/`inStock` added.'
       properties:
         snapshotTs:
           type: string
           format: date-time
-        platform:
+        type:
           type: string
         search:
           type: string
-        prepaid:
-          type: [boolean, 'null']
-        isDlc:
-          type: [boolean, 'null']
         preorder:
+          type: [boolean, 'null']
+        giftcard:
+          type: [boolean, 'null']
+        topseller:
+          type: [boolean, 'null']
+        inStock:
           type: [boolean, 'null']
         sortBy:
           $ref: '#/components/schemas/GameSortField'
@@ -330,17 +391,18 @@ components:
           type: integer
     GameRow:
       type: object
+      description: '**Changed in 2.0.0**: dropped `prodId`, `platform`, `seoName`, `isSub`, `isPrepaid`, `isDlc`, `hasStock`. Added `id`, `type`, `url`, `categories`, `description`, `topseller`, `giftcard`, `inStock`, `steamId`.'
       required:
         - snapshotTs
-        - prodId
+        - id
         - name
-        - platform
-        - seoName
-        - isSub
-        - isPrepaid
-        - isDlc
+        - type
+        - url
+        - categories
+        - topseller
         - preorder
-        - hasStock
+        - giftcard
+        - inStock
         - retail
         - price
         - discount
@@ -349,24 +411,30 @@ components:
         snapshotTs:
           type: string
           format: date-time
-        prodId:
+        id:
           type: integer
         name:
           type: string
-        platform:
+        type:
           type: string
-        seoName:
+        url:
           type: string
-        isSub:
-          type: boolean
-        isPrepaid:
-          type: boolean
-        isDlc:
+        categories:
+          type: array
+          items:
+            type: string
+        description:
+          type: [string, 'null']
+        topseller:
           type: boolean
         preorder:
           type: boolean
-        hasStock:
+        giftcard:
           type: boolean
+        inStock:
+          type: boolean
+        steamId:
+          type: [integer, 'null']
         retail:
           type: number
         price:
@@ -408,13 +476,16 @@ components:
           type: number
     GameHistoryResponse:
       type: object
-      required: [prodId, seoName, name, points]
+      required: [id, name, type, url, points]
+      description: '**Changed in 2.0.0**: `prodId`→`id`; `seoName` removed; `type` and `url` added.'
       properties:
-        prodId:
+        id:
           type: integer
-        seoName:
-          type: string
         name:
+          type: string
+        type:
+          type: string
+        url:
           type: string
         points:
           type: array
@@ -432,4 +503,3 @@ components:
               type: string
             message:
               type: string
-

@@ -61,7 +61,7 @@ function InstantGamingGamesPageInner() {
 
   const [snapshotTs, setSnapshotTs] = useState(() => searchParams.get("date") ?? "");
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
-  const [platform, setPlatform] = useState(() => searchParams.get("platform") ?? "all");
+  const [type, setType] = useState(() => searchParams.get("type") ?? "all");
   const [sortBy, setSortBy] = useState<GameSortField>(
     () => (searchParams.get("sortBy") as GameSortField) ?? "discount",
   );
@@ -90,12 +90,12 @@ function InstantGamingGamesPageInner() {
     const defaultDate = meta?.latestSnapshotTs.slice(0, 10);
     if (snapshotTs && snapshotTs !== defaultDate) params.set("date", snapshotTs);
     if (search) params.set("q", search);
-    if (platform !== "all") params.set("platform", platform);
+    if (type !== "all") params.set("type", type);
     if (sortBy !== "discount") params.set("sortBy", sortBy);
     if (sortDir !== "desc") params.set("sortDir", sortDir);
     if (page !== 1) params.set("page", String(page));
     if (pageSize !== 50) params.set("pageSize", String(pageSize));
-    if (selectedGame) params.set("game", String(selectedGame.prodId));
+    if (selectedGame) params.set("game", String(selectedGame.id));
     else if (pendingGameIdRef.current) params.set("game", pendingGameIdRef.current);
 
     const qs = params.toString();
@@ -103,12 +103,12 @@ function InstantGamingGamesPageInner() {
     if (`${window.location.pathname}${window.location.search}` !== next) {
       router.replace(next, { scroll: false });
     }
-  }, [snapshotTs, search, platform, sortBy, sortDir, page, pageSize, selectedGame, pathname, router, meta]);
+  }, [snapshotTs, search, type, sortBy, sortDir, page, pageSize, selectedGame, pathname, router, meta]);
 
   useEffect(() => {
     const pending = pendingGameIdRef.current;
     if (!pending || !data?.rows?.length) return;
-    const match = data.rows.find((row) => String(row.prodId) === pending);
+    const match = data.rows.find((row) => String(row.id) === pending);
     if (match) setSelectedGame(match);
     pendingGameIdRef.current = null;
   }, [data]);
@@ -125,9 +125,8 @@ function InstantGamingGamesPageInner() {
     fetchGames(
       {
         snapshotTs,
-        platform,
+        type,
         search,
-        prepaid: undefined,
         sortBy,
         sortDir,
         page,
@@ -140,7 +139,7 @@ function InstantGamingGamesPageInner() {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [snapshotTs, platform, search, sortBy, sortDir, page, pageSize]);
+  }, [snapshotTs, type, search, sortBy, sortDir, page, pageSize]);
 
   const maxPage = useMemo(() => {
     if (!data) {
@@ -154,8 +153,8 @@ function InstantGamingGamesPageInner() {
       return [];
     }
 
-    const productId = String(selectedGame.prodId);
-    const seoName = encodeURIComponent(selectedGame.seoName);
+    const productId = String(selectedGame.id);
+    const seoName = encodeURIComponent(selectedGame.url);
 
     return [
       `https://gaming-cdn.com/img/products/${productId}/pcover/${productId}.jpg`,
@@ -178,7 +177,7 @@ function InstantGamingGamesPageInner() {
 
     fetchGameHistory(
       {
-        prodId: selectedGame.prodId,
+        id: selectedGame.id,
         from: meta?.earliestSnapshotTs.slice(0, 10),
         to: meta?.latestSnapshotTs.slice(0, 10),
       },
@@ -257,17 +256,17 @@ function InstantGamingGamesPageInner() {
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Platform
+          Type
           <select
             className="rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
-            value={platform}
+            value={type}
             onChange={(event) => {
-              setPlatform(event.target.value);
+              setType(event.target.value);
               setPage(1);
             }}
           >
-            <option value="all">All platforms</option>
-            {meta?.platforms.map((entry) => (
+            <option value="all">All types</option>
+            {meta?.types.map((entry) => (
               <option key={entry} value={entry}>
                 {entry}
               </option>
@@ -320,7 +319,7 @@ function InstantGamingGamesPageInner() {
             <tbody>
               {data?.rows.map((row) => (
                 <tr
-                  key={row.prodId}
+                  key={row.id}
                   className="cursor-pointer border-t border-slate-800 hover:bg-slate-800/40"
                   role="button"
                   tabIndex={0}
@@ -336,7 +335,7 @@ function InstantGamingGamesPageInner() {
                     <div className="flex items-start gap-3">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={"https://gaming-cdn.com/images/products/"+ row.prodId +"/380x218/"+ row.seoName +"-cover.jpg"}
+                        src={"https://gaming-cdn.com/images/products/"+ row.id +"/380x218/"+ row.url +"-cover.jpg"}
                         alt={`${row.name} cover`}
                         loading="lazy"
                         className="h-12 w-20 shrink-0 rounded-md border border-slate-800 bg-slate-950 object-cover md:h-16 md:w-28"
@@ -346,9 +345,9 @@ function InstantGamingGamesPageInner() {
                         <p className="flex items-center gap-1.5 font-medium leading-snug">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={`/img/stats/${row.platform.replace("|", "")}.svg`}
-                            alt={row.platform}
-                            title={row.platform}
+                            src={`/img/stats/${row.type.replace("|", "")}.svg`}
+                            alt={row.type}
+                            title={row.type}
                             width={16}
                             height={16}
                             className="h-4 w-4 shrink-0 object-contain"
@@ -363,20 +362,20 @@ function InstantGamingGamesPageInner() {
                           <span className="text-emerald-400">(-{formatMoney(row.absDiscount)} / {row.discount}%)</span>
                         </p>
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {row.hasStock
+                          {row.inStock
                             ? <span className="rounded px-1.5 py-0.5 text-xs bg-emerald-500/15 text-emerald-300">In stock</span>
                             : <span className="rounded px-1.5 py-0.5 text-xs bg-rose-500/15 text-rose-300">Out of stock</span>
                           }
-                          {row.isDlc && <span className="rounded px-1.5 py-0.5 text-xs bg-purple-500/15 text-purple-300">DLC</span>}
+                          {row.topseller && <span className="rounded px-1.5 py-0.5 text-xs bg-yellow-500/15 text-yellow-300">Topseller</span>}
                           {row.preorder && <span className="rounded px-1.5 py-0.5 text-xs bg-blue-500/15 text-blue-300">Preorder</span>}
-                          {(row.isPrepaid || row.isSub) && <span className="rounded px-1.5 py-0.5 text-xs bg-orange-500/15 text-orange-300">Prepaid card</span>}
+                          {row.giftcard && <span className="rounded px-1.5 py-0.5 text-xs bg-orange-500/15 text-orange-300">Giftcard</span>}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-3 py-2.5">
                     <a
-                      href={"https://www.instant-gaming.com/en/" + row.prodId + "-buy-" + row.seoName + "?igr=miraculixx"}
+                      href={"https://www.instant-gaming.com/en/" + row.id + "-buy-" + row.url + "?igr=miraculixx"}
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`Open ${row.name} in a new tab`}
@@ -471,12 +470,12 @@ function InstantGamingGamesPageInner() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-2xl font-semibold">{selectedGame.name}</h2>
-                  <p className="text-sm text-slate-400">Product ID {selectedGame.prodId}</p>
+                  <p className="text-sm text-slate-400">Product ID {selectedGame.id}</p>
                 </div>
                 <div>
                   <a
                     className="rounded-md border border-slate-700 px-3 py-2.5 text-sm font-semibold text-amber-300 mx-3 hover:bg-slate-800"
-                    href={"https://www.instant-gaming.com/en/" + selectedGame.prodId + "-buy-" + selectedGame.seoName + "?igr=miraculixx"}
+                    href={"https://www.instant-gaming.com/en/" + selectedGame.id + "-buy-" + selectedGame.url + "?igr=miraculixx"}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`Open ${selectedGame.name} on Instant Gaming in a new tab`}
@@ -497,15 +496,15 @@ function InstantGamingGamesPageInner() {
                 <div className="flex items-center gap-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`/img/stats/${selectedGame.platform.replace("|", "")}.svg`}
-                    alt={selectedGame.platform}
-                    title={selectedGame.platform}
+                    src={`/img/stats/${selectedGame.type.replace("|", "")}.svg`}
+                    alt={selectedGame.type}
+                    title={selectedGame.type}
                     width={20}
                     height={20}
                     className="h-5 w-5 object-contain"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
-                  <span className="font-medium">{selectedGame.platform}</span>
+                  <span className="font-medium">{selectedGame.type}</span>
                 </div>
                 <div className="flex flex-wrap items-baseline gap-1.5">
                   <span className="text-base text-slate-400 line-through">{formatMoney(selectedGame.retail)}</span>
@@ -514,14 +513,22 @@ function InstantGamingGamesPageInner() {
                   <span className="text-emerald-400">(-{formatMoney(selectedGame.absDiscount)} / {selectedGame.discount}%)</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {selectedGame.hasStock
+                  {selectedGame.inStock
                     ? <span className="rounded-md px-2 py-1 bg-emerald-500/15 text-emerald-300">In stock</span>
                     : <span className="rounded-md px-2 py-1 bg-rose-500/15 text-rose-300">Out of stock</span>
                   }
-                  {selectedGame.isDlc && <span className="rounded-md px-2 py-1 bg-purple-500/15 text-purple-300">DLC</span>}
+                  {selectedGame.topseller && <span className="rounded-md px-2 py-1 bg-yellow-500/15 text-yellow-300">Topseller</span>}
                   {selectedGame.preorder && <span className="rounded-md px-2 py-1 bg-blue-500/15 text-blue-300">Preorder</span>}
-                  {(selectedGame.isPrepaid || selectedGame.isSub) && <span className="rounded-md px-2 py-1 bg-orange-500/15 text-orange-300">Prepaid Card</span>}
+                  {selectedGame.giftcard && <span className="rounded-md px-2 py-1 bg-orange-500/15 text-orange-300">Giftcard</span>}
+                  {selectedGame.categories?.map((category) => (
+                    <span key={category} className="rounded-md px-2 py-1 bg-indigo-500/15 text-indigo-300">
+                      {category}
+                    </span>
+                  ))}
                 </div>
+                {selectedGame.description ? (
+                  <p className="whitespace-pre-line text-slate-300">{selectedGame.description}</p>
+                ) : null}
               </div>
 
               <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">

@@ -16,18 +16,20 @@ export interface OverviewPoint {
 }
 
 export interface MetaResponse {
-  platforms: string[];
+  types: string[];
   latestSnapshotTs: string;
   earliestSnapshotTs: string;
+  supportedIntervals?: Interval[];
 }
 
 export interface OverviewQuery {
   from: string;
   to: string;
   interval: Interval;
-  platform?: string;
-  includeDlc?: boolean;
+  type?: string;
+  onlyTopseller?: boolean;
   includePreorder?: boolean;
+  includeGiftcard?: boolean;
 }
 
 export interface OverviewResponse {
@@ -37,15 +39,17 @@ export interface OverviewResponse {
 
 export interface GameRow {
   snapshotTs: string;
-  prodId: number;
+  id: number;
   name: string;
-  platform: string;
-  seoName: string;
-  isSub: boolean;
-  isPrepaid: boolean;
-  isDlc: boolean;
+  type: string;
+  url: string;
+  categories: string[];
+  description?: string | null;
+  topseller: boolean;
   preorder: boolean;
-  hasStock: boolean;
+  giftcard: boolean;
+  inStock: boolean;
+  steamId?: number | null;
   retail: number;
   price: number;
   discount: number;
@@ -54,11 +58,12 @@ export interface GameRow {
 
 export interface GamesQuery {
   snapshotTs?: string;
-  platform?: string;
+  type?: string;
   search?: string;
-  prepaid?: boolean;
-  isDlc?: boolean;
   preorder?: boolean;
+  giftcard?: boolean;
+  topseller?: boolean;
+  inStock?: boolean;
   sortBy?: GameSortField;
   sortDir?: SortDirection;
   page?: number;
@@ -74,7 +79,7 @@ export interface GamesResponse {
 }
 
 export interface GameHistoryQuery {
-  prodId: number;
+  id: number;
   from?: string;
   to?: string;
 }
@@ -88,9 +93,9 @@ export interface GameHistoryPoint {
 }
 
 export interface GameHistoryResponse {
-  prodId: number;
-  seoName: string;
+  id: number;
   name: string;
+  type: string;
+  url: string;
   points: GameHistoryPoint[];
 }
-
