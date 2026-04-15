@@ -47,7 +47,7 @@ export default function InstantGamingLayout({ children }: { children: ReactNode 
 
       <footer className="mt-8 border-t border-slate-800 bg-slate-900/60">
         <div className="mx-auto w-full max-w-7xl px-6 py-4 text-xs text-slate-400">
-          This page is not associated with, endorsed by, or affiliated with Instant Gaming. No user data is collected.
+          This page is not associated with, endorsed by, or affiliated with Instant Gaming. No user data is collected. Some links contain referal codes
         </div>
       </footer>
     </main>

@@ -187,7 +187,7 @@ export default function InstantGamingGamesPage() {
         <label className="flex flex-col gap-1 text-sm">
           Snapshot date
           <input
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
+            className="rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
             type="date"
             value={snapshotTs}
             onChange={(event) => {
@@ -199,7 +199,7 @@ export default function InstantGamingGamesPage() {
         <label className="flex flex-col gap-1 text-sm">
           Search game
           <input
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
+            className="rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
             type="text"
             value={search}
             placeholder="Minecraft, Ori, ..."
@@ -212,7 +212,7 @@ export default function InstantGamingGamesPage() {
         <label className="flex flex-col gap-1 text-sm">
           Platform
           <select
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
+            className="rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
             value={platform}
             onChange={(event) => {
               setPlatform(event.target.value);
@@ -231,7 +231,7 @@ export default function InstantGamingGamesPage() {
           Sort
           <div className="flex gap-2">
             <select
-              className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
+              className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
               value={sortBy}
               onChange={(event) => {
                 setSortBy(event.target.value as GameSortField);
@@ -245,7 +245,7 @@ export default function InstantGamingGamesPage() {
               ))}
             </select>
             <select
-              className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
+              className="rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
               value={sortDir}
               onChange={(event) => {
                 setSortDir(event.target.value as SortDirection);
@@ -266,8 +266,8 @@ export default function InstantGamingGamesPage() {
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-800/70 text-slate-300">
               <tr>
-                <th className="px-3 py-2">Game</th>
-                <th className="px-3 py-2"></th>
+                <th className="px-3 py-2">Game List</th>
+                <th className="px-3 py-2">Link</th>
               </tr>
             </thead>
             <tbody>
@@ -286,22 +286,32 @@ export default function InstantGamingGamesPage() {
                   }}
                 >
                   <td className="px-3 py-2.5">
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-start gap-3">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={`/img/stats/${row.platform}.webp`}
-                        alt={row.platform}
-                        title={row.platform}
-                        width={20}
-                        height={20}
-                        className="mt-0.5 h-5 w-5 shrink-0 object-contain"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        src={"https://gaming-cdn.com/images/products/"+ row.prodId +"/380x218/"+ row.seoName +"-cover.jpg"}
+                        alt={`${row.name} cover`}
+                        loading="lazy"
+                        className="h-12 w-20 shrink-0 rounded-md border border-slate-800 bg-slate-950 object-cover md:h-16 md:w-28"
+                        onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
                       />
                       <div className="min-w-0">
-                        <p className="font-medium leading-snug">{row.name}</p>
+                        <p className="flex items-center gap-1.5 font-medium leading-snug">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={`/img/stats/${row.platform.replace("|", "")}.svg`}
+                            alt={row.platform}
+                            title={row.platform}
+                            width={16}
+                            height={16}
+                            className="h-4 w-4 shrink-0 object-contain"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                          {row.name}
+                        </p>
                         <p className="mt-0.5 text-xs">
                           <span className="mr-1 text-slate-400 line-through">{formatMoney(row.retail)}</span>
-                          <span className="mr-1 text-slate-500">→</span>
+                          <span className="mr-1 text-slate-500">➜</span>
                           <span className="mr-1 text-amber-300">{formatMoney(row.price)}</span>
                           <span className="text-emerald-400">(-{formatMoney(row.absDiscount)} / {row.discount}%)</span>
                         </p>
@@ -381,7 +391,7 @@ export default function InstantGamingGamesPage() {
           <button
             className="rounded-md border border-slate-700 px-3 py-1 disabled:opacity-40"
             disabled={page >= maxPage || loading}
-            onClick={() => setPage((current) => Math.min(maxPage, current + 1))}
+            onClick={() => {setPage((current) => Math.min(maxPage, current + 1)); window.scrollTo(0, 0) }}
           >
             Next
           </button>
@@ -440,7 +450,7 @@ export default function InstantGamingGamesPage() {
                 <div className="flex items-center gap-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`/img/stats/${selectedGame.platform}.svg`}
+                    src={`/img/stats/${selectedGame.platform.replace("|", "")}.svg`}
                     alt={selectedGame.platform}
                     title={selectedGame.platform}
                     width={20}

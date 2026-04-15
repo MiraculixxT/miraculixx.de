@@ -98,7 +98,7 @@ export default function InstantGamingDashboard() {
         <label className="flex flex-col gap-1 text-sm">
           Date from
           <input
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
+            className="h-10 rounded-md border border-slate-700 bg-slate-950 px-3"
             type="date"
             value={from}
             onChange={(event) => setFrom(event.target.value)}
@@ -107,7 +107,7 @@ export default function InstantGamingDashboard() {
         <label className="flex flex-col gap-1 text-sm">
           Date to
           <input
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
+            className="h-10 rounded-md border border-slate-700 bg-slate-950 px-3"
             type="date"
             value={to}
             onChange={(event) => setTo(event.target.value)}
@@ -116,7 +116,7 @@ export default function InstantGamingDashboard() {
         <label className="flex flex-col gap-1 text-sm">
           Interval
           <select
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
+            className="h-10 rounded-md border border-slate-700 bg-slate-950 px-3"
             value={interval}
             onChange={(event) => setInterval(event.target.value as Interval)}
           >
@@ -128,7 +128,7 @@ export default function InstantGamingDashboard() {
         <label className="flex flex-col gap-1 text-sm">
           Platform
           <select
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
+            className="h-10 rounded-md border border-slate-700 bg-slate-950 px-3"
             value={platform}
             onChange={(event) => setPlatform(event.target.value)}
           >
@@ -140,13 +140,19 @@ export default function InstantGamingDashboard() {
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm text-slate-300">
-          <input type="checkbox" checked={includeDlc} onChange={(event) => setIncludeDlc(event.target.checked)} />
-          Include DLC
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-300">
+        <label className="flex h-10 cursor-pointer items-center gap-2 self-end rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white">
           <input
             type="checkbox"
+            className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-900 accent-indigo-500"
+            checked={includeDlc}
+            onChange={(event) => setIncludeDlc(event.target.checked)}
+          />
+          Include DLC
+        </label>
+        <label className="flex h-10 cursor-pointer items-center gap-2 self-end rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white">
+          <input
+            type="checkbox"
+            className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-900 accent-indigo-500"
             checked={includePreorder}
             onChange={(event) => setIncludePreorder(event.target.checked)}
           />
@@ -184,7 +190,7 @@ export default function InstantGamingDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="snapshotTs" tickFormatter={toDateInput} minTickGap={35} stroke="#94a3b8" />
                 <YAxis yAxisId="count" stroke="#94a3b8" />
-                <YAxis yAxisId="discount" orientation="right" stroke="#94a3b8" />
+                <YAxis yAxisId="discount" orientation="right" stroke="#94a3b8" domain={[0,100]}/>
                 <Tooltip
                   labelFormatter={(label) => new Date(String(label)).toLocaleDateString()}
                   contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155" }}
