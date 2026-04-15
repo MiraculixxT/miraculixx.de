@@ -5,6 +5,14 @@ const nextConfig: NextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
+    images: {
+        remotePatterns: [
+            {
+                protocol: "https",
+                hostname: "gaming-cdn.com",
+            },
+        ],
+    },
     output: "standalone"
 };
 
