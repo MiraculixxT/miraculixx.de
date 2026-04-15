@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Area,
@@ -31,6 +31,14 @@ function toLocalDateString(date: Date) {
 }
 
 export default function InstantGamingDashboard() {
+  return (
+    <Suspense fallback={<p className="text-sm text-slate-400">Loading...</p>}>
+      <InstantGamingDashboardInner />
+    </Suspense>
+  );
+}
+
+function InstantGamingDashboardInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

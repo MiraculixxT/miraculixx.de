@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   CartesianGrid,
@@ -37,6 +37,14 @@ function formatMoney(value: number) {
 
 
 export default function InstantGamingGamesPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-slate-400">Loading...</p>}>
+      <InstantGamingGamesPageInner />
+    </Suspense>
+  );
+}
+
+function InstantGamingGamesPageInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
