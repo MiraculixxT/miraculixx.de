@@ -62,6 +62,7 @@ function InstantGamingGamesPageInner() {
   const [snapshotTs, setSnapshotTs] = useState(() => searchParams.get("date") ?? "");
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [type, setType] = useState(() => searchParams.get("type") ?? "all");
+  const [inStockOnly, setInStockOnly] = useState(() => searchParams.get("inStock") === "1");
   const [sortBy, setSortBy] = useState<GameSortField>(
     () => (searchParams.get("sortBy") as GameSortField) ?? "discount",
   );
@@ -91,6 +92,7 @@ function InstantGamingGamesPageInner() {
     if (snapshotTs && snapshotTs !== defaultDate) params.set("date", snapshotTs);
     if (search) params.set("q", search);
     if (type !== "all") params.set("type", type);
+    if (inStockOnly) params.set("inStock", "1");
     if (sortBy !== "discount") params.set("sortBy", sortBy);
     if (sortDir !== "desc") params.set("sortDir", sortDir);
     if (page !== 1) params.set("page", String(page));
@@ -103,7 +105,7 @@ function InstantGamingGamesPageInner() {
     if (`${window.location.pathname}${window.location.search}` !== next) {
       router.replace(next, { scroll: false });
     }
-  }, [snapshotTs, search, type, sortBy, sortDir, page, pageSize, selectedGame, pathname, router, meta]);
+  }, [snapshotTs, search, type, inStockOnly, sortBy, sortDir, page, pageSize, selectedGame, pathname, router, meta]);
 
   useEffect(() => {
     const pending = pendingGameIdRef.current;
@@ -127,6 +129,7 @@ function InstantGamingGamesPageInner() {
         snapshotTs,
         type,
         search,
+        inStock: inStockOnly ? true : undefined,
         sortBy,
         sortDir,
         page,
@@ -139,7 +142,7 @@ function InstantGamingGamesPageInner() {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [snapshotTs, type, search, sortBy, sortDir, page, pageSize]);
+  }, [snapshotTs, type, search, inStockOnly, sortBy, sortDir, page, pageSize]);
 
   const maxPage = useMemo(() => {
     if (!data) {
@@ -229,7 +232,7 @@ function InstantGamingGamesPageInner() {
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-5">
+      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-6">
         <label className="flex flex-col gap-1 text-sm">
           Snapshot date
           <input
@@ -272,6 +275,23 @@ function InstantGamingGamesPageInner() {
               </option>
             ))}
           </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Stock
+          <div className="flex h-10 items-center rounded-md border border-slate-700 bg-slate-950 px-3">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={inStockOnly}
+                onChange={(event) => {
+                  setInStockOnly(event.target.checked);
+                  setPage(1);
+                }}
+              />
+              In stock
+            </label>
+          </div>
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Sort
