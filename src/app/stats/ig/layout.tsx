@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 const NAV_ITEMS = [
   { href: "/stats/ig", label: "Dashboard" },
-  { href: "/stats/ig/games", label: "Games Table" },
+  { href: "/stats/ig/games", label: "Games Table" }
 ];
 
 export default function InstantGamingLayout({ children }: { children: ReactNode }) {
