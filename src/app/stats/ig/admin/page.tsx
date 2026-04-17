@@ -34,8 +34,7 @@ export default function StatsAdminPage() {
           setIsAdmin(false);
           return;
         }
-        const data = (await response.json()) as { isAdmin?: boolean };
-        setIsAdmin(Boolean(data.isAdmin));
+        setIsAdmin(true);
       } catch {
         if (!cancelled) {
           setLoadError("Could not contact the admin API");
