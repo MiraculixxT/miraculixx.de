@@ -1,4 +1,3 @@
-import {redirect} from "next/navigation";
 import {getToken} from "./tokenCookie";
 import {API_URL} from "@/app/config";
 
@@ -9,17 +8,18 @@ export async function accessProtectedAPI(
     method: string = 'GET',
     body: string | null = null
 ): Promise<Response> {
-    function authenticate() {
+    async function authenticate(): Promise<never> {
         const state = encodeURIComponent(prev);
         const authUrl = `/auth/login?state=${state}`;
         console.info("Redirect to ", authUrl);
-        redirect(authUrl);
+        window.location.href = authUrl;
+        return new Promise<never>(() => {});
     }
 
     const token = await getToken();
     if (!token) {
         console.warn("No auth token found in the cookies");
-        authenticate();
+        await authenticate();
     }
 
     const finalHeaders = new Headers(header);
@@ -31,7 +31,7 @@ export async function accessProtectedAPI(
     });
 
     if (response.status == 401) {
-        authenticate();
+        await authenticate();
     }
 
     return response;
