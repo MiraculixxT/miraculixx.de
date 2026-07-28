@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { accessProtectedAPI } from "@/components/apiRequests";
 
 const PAGE_PATH = "/worlds/admin";
@@ -126,12 +126,40 @@ function buildPayload(form: ManualForm) {
 }
 
 export default function WorldsAdminPage() {
+  const [checking, setChecking] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [form, setForm] = useState<ManualForm>(EMPTY_FORM);
   const [upsert, setUpsert] = useState<ActionState>(IDLE);
   const [deleteId, setDeleteId] = useState("");
   const [remove, setRemove] = useState<ActionState>(IDLE);
   const [scan, setScan] = useState<ActionState>(IDLE);
   const [refresh, setRefresh] = useState<ActionState>(IDLE);
+
+  // 404 means the session passed the admin gate, 401 redirects to login inside accessProtectedAPI.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await accessProtectedAPI("worlds/manual/-1", {}, PAGE_PATH, "DELETE");
+        if (cancelled) return;
+        if (response.status === 404 || response.ok) {
+          setIsAdmin(true);
+          return;
+        }
+        setLoadError(`Failed to verify admin status (${response.status})`);
+      } catch {
+        if (!cancelled) setLoadError("Could not contact the worlds API");
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function set<K extends keyof ManualForm>(key: K, value: ManualForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -204,6 +232,29 @@ export default function WorldsAdminPage() {
     } catch {
       setter({ loading: false, message: null, error: "Request failed" });
     }
+  }
+
+  if (checking) {
+    return <Gate>Checking permissions...</Gate>;
+  }
+
+  if (loadError) {
+    return (
+      <Gate>
+        <p className="rounded-lg bg-rose-500/10 p-3 text-rose-300">{loadError}</p>
+      </Gate>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Gate>
+        <h2 className="text-xl font-semibold">Access denied</h2>
+        <p className="mt-2 text-sm text-slate-400">
+          Your account does not have admin permissions for the worlds API.
+        </p>
+      </Gate>
+    );
   }
 
   return (
@@ -376,6 +427,14 @@ export default function WorldsAdminPage() {
           onRun={() => post("worlds/refresh-cache", setRefresh)}
         />
       </div>
+    </main>
+  );
+}
+
+function Gate({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="mx-auto w-full max-w-5xl px-6 py-8 text-sm text-slate-400">{children}</div>
     </main>
   );
 }
