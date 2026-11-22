@@ -52,7 +52,7 @@ export function TextModal(
                 <div className="flex justify-between pb-2 -mt-2">
                     <p className="text-xl font-bold">{name}</p>
                     <button
-                        onClick={() => onClose(content)}
+                        onClick={() => onClose(textareaRef.current?.value ?? content)}
                         className="bg-purple-600 w-20 text-white py-2 rounded-lg -mt-2 hover:bg-purple-700 transition"
                     >Save</button>
                 </div>
@@ -61,7 +61,6 @@ export function TextModal(
                     className="bg-[#2a2a2a] p-3 rounded-lg text-white"
                     style={{width: '80vw', height: '60vh'}}
                     defaultValue={content || ""}
-                    onChange={(e) => content = e.target.value}
                 />
             </div>
         </div>
