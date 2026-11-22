@@ -174,7 +174,7 @@ function AvailabilitySection({ spans, loading, zoom }: { spans: AvailabilitySpan
       tracked,
       start,
       end,
-      outages: spans.filter((s) => s.inStock === 0).length,
+      outages: spans.filter((s, i) => spanState(s) !== "in" && (i === 0 || spanState(spans[i - 1]) === "in")).length,
       last: spans[spans.length - 1],
     };
   }, [spans]);
@@ -270,7 +270,9 @@ function PriceChart({ points, spans, fallback, zoom, onZoom }: {
   };
   useEffect(() => setMounted(true), []);
 
-  const outages = useMemo(() => spans.filter((s) => s.inStock === 0).map((s) => ({ x1: Date.parse(s.from), x2: Date.parse(s.to) })), [spans]);
+  const toArea = (s: AvailabilitySpan) => ({ x1: Date.parse(s.from), x2: Date.parse(s.to) });
+  const outages = useMemo(() => spans.filter((s) => spanState(s) === "out").map(toArea), [spans]);
+  const partials = useMemo(() => spans.filter((s) => spanState(s) === "partial").map(toArea), [spans]);
 
   const data = useMemo<ChartPoint[]>(() => {
     const source = points.length > 0 ? points : [{ ...fallback, samples: 1 }];
@@ -325,6 +327,9 @@ function PriceChart({ points, spans, fallback, zoom, onZoom }: {
               <CartesianGrid vertical={false} stroke={CHART.grid} />
               <XAxis dataKey="t" type="number" scale="time" domain={domain} allowDataOverflow tickFormatter={(v) => formatDate(v).replace(/ \d{4}$/, "")} minTickGap={40} stroke={CHART.axis} tickLine={false} axisLine={false} fontSize={12} />
               <YAxis width={56} tickFormatter={(v) => `${v} €`} stroke={CHART.axis} tickLine={false} axisLine={false} fontSize={12} domain={[0, "auto"]} />
+              {partials.map((o) => (
+                <ReferenceArea key={`p${o.x1}`} x1={o.x1} x2={o.x2} fill={CHART.outOfStock} fillOpacity={0.05} stroke="none" ifOverflow="hidden" />
+              ))}
               {outages.map((o) => (
                 <ReferenceArea key={o.x1} x1={o.x1} x2={o.x2} fill={CHART.outOfStock} fillOpacity={0.12} stroke="none" ifOverflow="hidden" />
               ))}
@@ -362,6 +367,7 @@ function PriceChart({ points, spans, fallback, zoom, onZoom }: {
         <li className="flex items-center gap-1.5"><span aria-hidden className="h-0.5 w-4" style={{ background: CHART.primary }} />Price</li>
         <li className="flex items-center gap-1.5"><span aria-hidden className="w-4 border-t-2 border-dashed" style={{ borderColor: CHART.reference }} />Retail price</li>
         <li className="flex items-center gap-1.5"><span aria-hidden className="h-3 w-3 rounded-sm bg-ig-red/30" />Out of stock</li>
+        <li className="flex items-center gap-1.5"><span aria-hidden className="h-3 w-3 rounded-sm bg-ig-red/15" />Partly out of stock</li>
         <li className="ml-auto text-ig-medium-light">{zoom ? "Double-click to reset zoom" : "Drag across the chart to zoom"}</li>
       </ul>
     </>
