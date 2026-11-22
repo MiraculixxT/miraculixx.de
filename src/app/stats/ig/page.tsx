@@ -2,37 +2,41 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchMeta, fetchOverview } from "@/components/stats/ig/clientApi";
 import type { Interval, MetaResponse, OverviewPoint, OverviewQuery } from "@/components/stats/ig/types";
+import { CHART, ChartTooltip, ErrorNote, Field, Panel, Segmented, Toggle, formatDate, formatMoney, inputClass, localDay } from "@/components/stats/ig/ui";
 
-const DEFAULT_FROM_OFFSET = 90;
+const RANGES = [
+  { value: 7, label: "Last 7 days" },
+  { value: 30, label: "Last 30 days" },
+  { value: 90, label: "Last 90 days" },
+  { value: 365, label: "Last year" },
+];
+const DEFAULT_RANGE = 90;
+const INTERVALS: { value: Interval; label: string }[] = [
+  { value: "day", label: "Day" },
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+];
 
-function toDateInput(value: string) {
-  return value.slice(0, 10);
+type ChartPoint = OverviewPoint & { t: number };
+
+function dateRange(days: number) {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const start = new Date(now);
+  start.setDate(start.getDate() - days);
+  return { from: localDay(start), to: localDay(now) };
 }
 
-function toLocalDateString(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function parseRange(raw: string | null) {
+  return RANGES.find((r) => String(r.value) === raw)?.value ?? DEFAULT_RANGE;
 }
 
 export default function InstantGamingDashboard() {
   return (
-    <Suspense fallback={<p className="text-sm text-slate-400">Loading...</p>}>
+    <Suspense fallback={<p className="text-sm text-ig-light">Loading...</p>}>
       <InstantGamingDashboardInner />
     </Suspense>
   );
@@ -49,11 +53,8 @@ function InstantGamingDashboardInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [from, setFrom] = useState(() => searchParams.get("from") ?? "");
-  const [to, setTo] = useState(() => searchParams.get("to") ?? "");
-  const [interval, setInterval] = useState<Interval>(
-    () => (searchParams.get("interval") as Interval) ?? "day",
-  );
+  const [range, setRange] = useState(() => parseRange(searchParams.get("range")));
+  const [interval, setInterval] = useState<Interval>(() => (searchParams.get("interval") as Interval) ?? "day");
   const [type, setType] = useState(() => searchParams.get("type") ?? "all");
   const [onlyTopseller, setOnlyTopseller] = useState(() => searchParams.get("topseller") === "1");
   const [includePreorder, setIncludePreorder] = useState(() => searchParams.get("preorder") === "1");
@@ -61,43 +62,17 @@ function InstantGamingDashboardInner() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    setFrom((current) => {
-      if (current) return current;
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      const start = new Date(now);
-      start.setDate(start.getDate() - DEFAULT_FROM_OFFSET);
-      return toLocalDateString(start);
-    });
-    setTo((current) => {
-      if (current) return current;
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      return toLocalDateString(now);
-    });
 
     const controller = new AbortController();
     fetchMeta(controller.signal)
-      .then((data) => setMeta(data))
+      .then(setMeta)
       .catch(() => setError("Could not load metadata"));
-
     return () => controller.abort();
   }, []);
 
   useEffect(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const defaultTo = toLocalDateString(now);
-    const start = new Date(now);
-    start.setDate(start.getDate() - DEFAULT_FROM_OFFSET);
-    const defaultFrom = toLocalDateString(start);
-
     const params = new URLSearchParams();
-    if (from && from !== defaultFrom) params.set("from", from);
-    if (to && to !== defaultTo) params.set("to", to);
+    if (range !== DEFAULT_RANGE) params.set("range", String(range));
     if (interval !== "day") params.set("interval", interval);
     if (type !== "all") params.set("type", type);
     if (onlyTopseller) params.set("topseller", "1");
@@ -109,185 +84,158 @@ function InstantGamingDashboardInner() {
     if (`${window.location.pathname}${window.location.search}` !== next) {
       router.replace(next, { scroll: false });
     }
-  }, [from, to, interval, type, onlyTopseller, includePreorder, includeGiftcard, pathname, router]);
+  }, [range, interval, type, onlyTopseller, includePreorder, includeGiftcard, pathname, router]);
 
   useEffect(() => {
-    if (!from || !to) {
-      return;
-    }
-
     const controller = new AbortController();
-    const query: OverviewQuery = {
-      from,
-      to,
-      interval,
-      type,
-      onlyTopseller,
-      includePreorder,
-      includeGiftcard,
-    };
-
+    const query: OverviewQuery = { ...dateRange(range), interval, type, onlyTopseller, includePreorder, includeGiftcard };
     setLoading(true);
     setError(null);
-
     fetchOverview(query, controller.signal)
       .then((response) => setPoints(response.points))
       .catch(() => setError("Could not load chart data"))
       .finally(() => setLoading(false));
-
     return () => controller.abort();
-  }, [from, to, interval, type, onlyTopseller, includePreorder, includeGiftcard]);
+  }, [range, interval, type, onlyTopseller, includePreorder, includeGiftcard]);
 
-  const latest = useMemo(() => points[points.length - 1], [points]);
+  const chartPoints = useMemo<ChartPoint[]>(() => points.map((p) => ({ ...p, t: Date.parse(p.snapshotTs) })), [points]);
+  const first = points[0];
+  const latest = points[points.length - 1];
 
   return (
-    <section className="flex flex-col gap-5">
-      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-4">
-        <label className="flex flex-col gap-1 text-sm">
-          Date from
-          <input
-            className="h-10 rounded-md border border-slate-700 bg-slate-950 px-3"
-            type="date"
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Date to
-          <input
-            className="h-10 rounded-md border border-slate-700 bg-slate-950 px-3"
-            type="date"
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Interval
-          <select
-            className="h-10 rounded-md border border-slate-700 bg-slate-950 px-3"
-            value={interval}
-            onChange={(event) => setInterval(event.target.value as Interval)}
-          >
-            <option value="day">Day</option>
-            <option value="week">Week</option>
-            <option value="month">Month</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Type
-          <select
-            className="h-10 rounded-md border border-slate-700 bg-slate-950 px-3"
-            value={type}
-            onChange={(event) => setType(event.target.value)}
-          >
-            <option value="all">All types</option>
-            {meta?.types.map((entry) => (
-              <option key={entry} value={entry}>
-                {entry}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex h-10 cursor-pointer items-center gap-2 self-end rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white">
-          <input
-            type="checkbox"
-            className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-900 accent-indigo-500"
-            checked={onlyTopseller}
-            onChange={(event) => setOnlyTopseller(event.target.checked)}
-          />
-          Only topseller
-        </label>
-        <label className="flex h-10 cursor-pointer items-center gap-2 self-end rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white">
-          <input
-            type="checkbox"
-            className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-900 accent-indigo-500"
-            checked={includePreorder}
-            disabled={onlyTopseller}
-            onChange={(event) => setIncludePreorder(event.target.checked)}
-          />
-          Include preorder
-        </label>
-        <label className="flex h-10 cursor-pointer items-center gap-2 self-end rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white">
-          <input
-            type="checkbox"
-            className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-900 accent-indigo-500"
-            checked={includeGiftcard}
-            disabled={onlyTopseller}
-            onChange={(event) => setIncludeGiftcard(event.target.checked)}
-          />
-          Include giftcard
-        </label>
+    <>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Market overview</h1>
+          <p className="mt-1 text-ig-light">
+            Daily snapshots of the Instant Gaming catalog
+            {meta ? <> · tracked since {formatDate(meta.earliestSnapshotTs)} · last update {formatDate(meta.latestSnapshotTs)}</> : null}
+          </p>
+        </div>
+        {loading ? <span className="text-sm text-ig-medium-light">Updating…</span> : null}
+      </header>
+
+      <Panel>
+        <div className="grid gap-4 lg:grid-cols-[auto_auto_1fr]">
+          <Field label="Time range">
+            <Segmented options={RANGES} value={range} onChange={setRange} />
+          </Field>
+          <Field label="Interval">
+            <Segmented options={INTERVALS} value={interval} onChange={setInterval} />
+          </Field>
+          <Field label="Platform">
+            <select className={inputClass} value={type} onChange={(e) => setType(e.target.value)}>
+              <option value="all">All platforms</option>
+              {meta?.types.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
+            </select>
+          </Field>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-x-10 border-t border-white/10 pt-3 [&>button]:w-auto">
+          <Toggle label="Only topsellers" checked={onlyTopseller} onChange={setOnlyTopseller} />
+          <Toggle label="Include pre-orders" checked={includePreorder} disabled={onlyTopseller} onChange={setIncludePreorder} />
+          <Toggle label="Include gift cards" checked={includeGiftcard} disabled={onlyTopseller} onChange={setIncludeGiftcard} />
+        </div>
+      </Panel>
+
+      {error ? <ErrorNote>{error}</ErrorNote> : null}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi label="Games in stock" value={latest ? latest.gameCount.toLocaleString("en-GB") : "–"} delta={first && latest ? latest.gameCount - first.gameCount : null} format={(v) => v.toLocaleString("en-GB")} />
+        <Kpi label="Average discount" value={latest ? `${latest.avgDiscount.toFixed(1)}%` : "–"} delta={first && latest ? latest.avgDiscount - first.avgDiscount : null} format={(v) => `${v.toFixed(1)} pts`} />
+        <Kpi label="Average saving" value={latest ? formatMoney(latest.avgAbsDiscount) : "–"} delta={first && latest ? latest.avgAbsDiscount - first.avgAbsDiscount : null} format={formatMoney} />
+        <Kpi label="Biggest discount" value={latest ? `-${latest.maxDiscount}%` : "–"} sub={latest ? `up to ${formatMoney(latest.maxAbsDiscount)} off` : undefined} highlight />
       </div>
 
-      {error ? <p className="rounded-lg bg-rose-500/10 p-3 text-rose-300">{error}</p> : null}
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <article className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-          <p className="text-sm text-slate-400">Games in latest snapshot</p>
-          <p className="mt-2 text-3xl font-bold text-indigo-300">{latest?.gameCount ?? "-"}</p>
-        </article>
-        <article className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-          <p className="text-sm text-slate-400">Average discount</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-300">
-            {latest ? `${latest.avgDiscount.toFixed(2)}%` : "-"}
-          </p>
-        </article>
-        <article className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-          <p className="text-sm text-slate-400">Average absolute discount</p>
-          <p className="mt-2 text-3xl font-bold text-amber-300">
-            {latest ? `${latest.avgAbsDiscount.toFixed(2)} EUR` : "-"}
-          </p>
-        </article>
+      <div className="grid gap-4 xl:grid-cols-3">
+        <TrendChart
+          title="Games in stock"
+          mounted={mounted}
+          points={chartPoints}
+          dataKey="gameCount"
+          formatAxis={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))}
+          rows={(p) => [{ name: "Games in stock", value: p.gameCount.toLocaleString("en-GB"), color: CHART.primary }]}
+        />
+        <TrendChart
+          title="Average discount"
+          mounted={mounted}
+          points={chartPoints}
+          dataKey="avgDiscount"
+          formatAxis={(v) => `${v}%`}
+          rows={(p) => [
+            { name: "Average", value: `${p.avgDiscount.toFixed(1)}%`, color: CHART.primary },
+            { name: "Smallest", value: `${p.minDiscount}%` },
+            { name: "Biggest", value: `${p.maxDiscount}%` },
+          ]}
+        />
+        <TrendChart
+          title="Average saving"
+          mounted={mounted}
+          points={chartPoints}
+          dataKey="avgAbsDiscount"
+          formatAxis={(v) => `${v} €`}
+          rows={(p) => [
+            { name: "Average", value: formatMoney(p.avgAbsDiscount), color: CHART.primary },
+            { name: "Smallest", value: formatMoney(p.minAbsDiscount) },
+            { name: "Biggest", value: formatMoney(p.maxAbsDiscount) },
+          ]}
+        />
       </div>
-
-      <article className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-        <h2 className="mb-3 text-xl font-semibold">Discount trend vs game count</h2>
-        <div className="h-96 w-full">
-          {mounted ? (
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <LineChart data={points} margin={{ top: 10, right: 18, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="snapshotTs" tickFormatter={toDateInput} minTickGap={35} stroke="#94a3b8" />
-                <YAxis yAxisId="count" stroke="#94a3b8" />
-                <YAxis yAxisId="discount" orientation="right" stroke="#94a3b8" domain={[0,100]}/>
-                <Tooltip
-                  labelFormatter={(label) => new Date(String(label)).toLocaleDateString()}
-                  contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155" }}
-                />
-                <Legend />
-                <Line yAxisId="count" dataKey="gameCount" stroke="#818cf8" dot={false} name="Game count" />
-                <Line yAxisId="discount" dataKey="avgDiscount" stroke="#34d399" dot={false} name="Avg discount %" />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : null}
-        </div>
-      </article>
-
-      <article className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-        <h2 className="mb-3 text-xl font-semibold">Absolute discount envelope</h2>
-        <div className="h-96 w-full">
-          {mounted ? (
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <AreaChart data={points} margin={{ top: 10, right: 18, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="snapshotTs" tickFormatter={toDateInput} minTickGap={35} stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip
-                  labelFormatter={(label) => new Date(String(label)).toLocaleDateString()}
-                  contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155" }}
-                />
-                <Legend />
-                <Area type="monotone" dataKey="minAbsDiscount" stroke="#facc15" fill="#facc15" fillOpacity={0.2} />
-                <Area type="monotone" dataKey="avgAbsDiscount" stroke="#fb923c" fill="#fb923c" fillOpacity={0.2} />
-                <Area type="monotone" dataKey="maxAbsDiscount" stroke="#ef4444" fill="#ef4444" fillOpacity={0.2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : null}
-        </div>
-      </article>
-
-      {loading ? <p className="text-sm text-slate-400">Loading updated chart data...</p> : null}
-    </section>
+      <p className="-mt-2 text-xs text-ig-medium-light">Data older than a month is kept as weekly averages.</p>
+    </>
   );
 }
 
+function Kpi({ label, value, delta, format, sub, highlight }: { label: string; value: string; delta?: number | null; format?: (v: number) => string; sub?: string; highlight?: boolean }) {
+  const showDelta = delta !== null && delta !== undefined && format && Math.abs(delta) > 0.005;
+  return (
+    <article className={`rounded-ig p-5 ${highlight ? "bg-fire" : "bg-ig-very-dark"}`}>
+      <p className={`text-sm font-bold ${highlight ? "text-white/85" : "text-ig-light"}`}>{label}</p>
+      <p className="mt-2 text-3xl font-bold">{value}</p>
+      {showDelta ? (
+        <p className="mt-1 text-xs text-ig-light">
+          <span className="font-bold text-ig-very-light">{delta > 0 ? "▲ +" : "▼ −"}{format(Math.abs(delta))}</span> since range start
+        </p>
+      ) : sub ? <p className="mt-1 text-xs text-white/85">{sub}</p> : <p className="mt-1 text-xs">&nbsp;</p>}
+    </article>
+  );
+}
+
+function TrendChart({ title, mounted, points, dataKey, formatAxis, rows }: {
+  title: string;
+  mounted: boolean;
+  points: ChartPoint[];
+  dataKey: keyof OverviewPoint;
+  formatAxis: (v: number) => string;
+  rows: (p: ChartPoint) => { name: string; value: string; color?: string }[];
+}) {
+  const gradientId = `fill-${dataKey}`;
+  return (
+    <Panel title={title}>
+      <div className="h-64 w-full">
+        {mounted ? (
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <AreaChart data={points} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={CHART.primary} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={CHART.primary} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke={CHART.grid} />
+              <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]} tickFormatter={(v) => formatDate(v).replace(/ \d{4}$/, "")} minTickGap={40} stroke={CHART.axis} tickLine={false} axisLine={false} fontSize={12} />
+              <YAxis width={48} tickFormatter={formatAxis} stroke={CHART.axis} tickLine={false} axisLine={false} fontSize={12} />
+              <Tooltip
+                cursor={{ stroke: CHART.axis, strokeDasharray: "3 3" }}
+                content={({ active, payload }) => {
+                  const point = payload?.[0]?.payload as ChartPoint | undefined;
+                  return point ? <ChartTooltip active={active} label={formatDate(point.t)} rows={rows(point)} /> : null;
+                }}
+              />
+              <Area type="monotone" dataKey={dataKey} stroke={CHART.primary} strokeWidth={2} fill={`url(#${gradientId})`} dot={false} activeDot={{ r: 4, stroke: "#1d1d1d", strokeWidth: 2 }} isAnimationActive={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : null}
+      </div>
+    </Panel>
+  );
+}

@@ -1,44 +1,24 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { fetchGameHistory, fetchGames, fetchMeta } from "@/components/stats/ig/clientApi";
-import type {
-  GameHistoryResponse,
-  GameHistoryPoint,
-  GameRow,
-  GameSortField,
-  GamesResponse,
-  MetaResponse,
-  SortDirection,
-} from "@/components/stats/ig/types";
+import { fetchGames, fetchMeta } from "@/components/stats/ig/clientApi";
+import GamePanel from "@/components/stats/ig/GamePanel";
+import type { GameRow, GameSortField, GamesResponse, MetaResponse, SortDirection } from "@/components/stats/ig/types";
+import { DiscountBadge, ErrorNote, Field, PlatformIcon, StockDot, Tag, Toggle, coverUrl, formatDate, formatMoney, inputClass, localDay, productLink } from "@/components/stats/ig/ui";
 
 const SORT_FIELDS: { value: GameSortField; label: string }[] = [
-  { value: "discount", label: "Discount %" },
-  { value: "absDiscount", label: "Abs discount" },
+  { value: "discount", label: "Discount" },
+  { value: "absDiscount", label: "Saving" },
   { value: "price", label: "Price" },
-  { value: "retail", label: "Retail" },
+  { value: "retail", label: "Retail price" },
   { value: "name", label: "Name" },
 ];
-
-function formatMoney(value: number) {
-  return `${value.toFixed(2)} €`;
-}
-
+const PAGE_SIZES = [25, 50, 100];
 
 export default function InstantGamingGamesPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-slate-400">Loading...</p>}>
+    <Suspense fallback={<p className="text-sm text-ig-light">Loading...</p>}>
       <InstantGamingGamesPageInner />
     </Suspense>
   );
@@ -54,45 +34,52 @@ function InstantGamingGamesPageInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedGame, setSelectedGame] = useState<GameRow | null>(null);
-  const [historyPoints, setHistoryPoints] = useState<GameHistoryPoint[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-  const [bannerIndex, setBannerIndex] = useState(0);
 
   const [snapshotTs, setSnapshotTs] = useState(() => searchParams.get("date") ?? "");
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [type, setType] = useState(() => searchParams.get("type") ?? "all");
   const [inStockOnly, setInStockOnly] = useState(() => searchParams.get("inStock") === "1");
-  const [sortBy, setSortBy] = useState<GameSortField>(
-    () => (searchParams.get("sortBy") as GameSortField) ?? "discount",
-  );
-  const [sortDir, setSortDir] = useState<SortDirection>(
-    () => (searchParams.get("sortDir") as SortDirection) ?? "desc",
-  );
+  const [topsellerOnly, setTopsellerOnly] = useState(() => searchParams.get("top") === "1");
+  const [preorderOnly, setPreorderOnly] = useState(() => searchParams.get("pre") === "1");
+  const [hideGiftcards, setHideGiftcards] = useState(() => searchParams.get("nogift") === "1");
+  const [sortBy, setSortBy] = useState<GameSortField>(() => (searchParams.get("sortBy") as GameSortField) ?? "discount");
+  const [sortDir, setSortDir] = useState<SortDirection>(() => (searchParams.get("sortDir") as SortDirection) ?? "desc");
   const [page, setPage] = useState(() => Number(searchParams.get("page")) || 1);
   const [pageSize, setPageSize] = useState(() => Number(searchParams.get("pageSize")) || 50);
 
   const pendingGameIdRef = useRef<string | null>(searchParams.get("game"));
+
+  const update = <T,>(setter: (value: T) => void) => (value: T) => {
+    setter(value);
+    setPage(1);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
     fetchMeta(controller.signal)
       .then((response) => {
         setMeta(response);
-        setSnapshotTs((current) => current || response.latestSnapshotTs.slice(0, 10));
+        setSnapshotTs((current) => current || localDay(response.latestSnapshotTs));
       })
       .catch(() => setError("Could not load metadata"));
-
     return () => controller.abort();
   }, []);
 
   useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => {
     const params = new URLSearchParams();
-    const defaultDate = meta?.latestSnapshotTs.slice(0, 10);
-    if (snapshotTs && snapshotTs !== defaultDate) params.set("date", snapshotTs);
-    if (search) params.set("q", search);
+    if (snapshotTs && snapshotTs !== (meta && localDay(meta.latestSnapshotTs))) params.set("date", snapshotTs);
+    if (debouncedSearch) params.set("q", debouncedSearch);
     if (type !== "all") params.set("type", type);
     if (inStockOnly) params.set("inStock", "1");
+    if (topsellerOnly) params.set("top", "1");
+    if (preorderOnly) params.set("pre", "1");
+    if (hideGiftcards) params.set("nogift", "1");
     if (sortBy !== "discount") params.set("sortBy", sortBy);
     if (sortDir !== "desc") params.set("sortDir", sortDir);
     if (page !== 1) params.set("page", String(page));
@@ -105,7 +92,7 @@ function InstantGamingGamesPageInner() {
     if (`${window.location.pathname}${window.location.search}` !== next) {
       router.replace(next, { scroll: false });
     }
-  }, [snapshotTs, search, type, inStockOnly, sortBy, sortDir, page, pageSize, selectedGame, pathname, router, meta]);
+  }, [snapshotTs, debouncedSearch, type, inStockOnly, topsellerOnly, preorderOnly, hideGiftcards, sortBy, sortDir, page, pageSize, selectedGame, pathname, router, meta]);
 
   useEffect(() => {
     const pending = pendingGameIdRef.current;
@@ -116,20 +103,20 @@ function InstantGamingGamesPageInner() {
   }, [data]);
 
   useEffect(() => {
-    if (!snapshotTs) {
-      return;
-    }
+    if (!snapshotTs) return;
 
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-
     fetchGames(
       {
         snapshotTs,
         type,
-        search,
+        search: debouncedSearch,
         inStock: inStockOnly ? true : undefined,
+        topseller: topsellerOnly ? true : undefined,
+        preorder: preorderOnly ? true : undefined,
+        giftcard: hideGiftcards ? false : undefined,
         sortBy,
         sortDir,
         page,
@@ -137,455 +124,206 @@ function InstantGamingGamesPageInner() {
       },
       controller.signal,
     )
-      .then((response) => setData(response))
-      .catch(() => setError("Could not load game data"))
+      .then(setData)
+      .catch(() => !controller.signal.aborted && setError("Could not load game data"))
       .finally(() => setLoading(false));
-
     return () => controller.abort();
-  }, [snapshotTs, type, search, inStockOnly, sortBy, sortDir, page, pageSize]);
+  }, [snapshotTs, type, debouncedSearch, inStockOnly, topsellerOnly, preorderOnly, hideGiftcards, sortBy, sortDir, page, pageSize]);
 
-  const maxPage = useMemo(() => {
-    if (!data) {
-      return 1;
-    }
-    return Math.max(1, Math.ceil(data.total / data.pageSize));
-  }, [data]);
-
-  const bannerCandidates = useMemo(() => {
-    if (!selectedGame) {
-      return [];
-    }
-
-    const productId = String(selectedGame.id);
-    const seoName = encodeURIComponent(selectedGame.url);
-
-    return [
-      `https://gaming-cdn.com/img/products/${productId}/pcover/${productId}.jpg`,
-      `https://gaming-cdn.com/images/products/${productId}/616x353/${seoName}-cover.jpg`,
-    ];
-  }, [selectedGame]);
-
-  useEffect(() => {
-    setBannerIndex(0);
-  }, [selectedGame]);
-
-  useEffect(() => {
-    if (!selectedGame) {
-      return;
-    }
-
-    const controller = new AbortController();
-    setHistoryLoading(true);
-    setHistoryError(null);
-
-    fetchGameHistory(
-      {
-        id: selectedGame.id,
-        from: meta?.earliestSnapshotTs.slice(0, 10),
-        to: meta?.latestSnapshotTs.slice(0, 10),
-      },
-      controller.signal,
-    )
-      .then((response: GameHistoryResponse) => setHistoryPoints(response.points))
-      .catch(() => {
-        setHistoryPoints([]);
-        setHistoryError("Could not load game history");
-      })
-      .finally(() => setHistoryLoading(false));
-
-    return () => controller.abort();
-  }, [selectedGame, meta]);
-
-  useEffect(() => {
-    if (!selectedGame) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSelectedGame(null);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedGame]);
-
-  const graphPoints = useMemo(() => {
-    if (historyPoints.length > 0) {
-      return historyPoints;
-    }
-    if (!selectedGame) {
-      return [];
-    }
-
-    return [
-      {
-        snapshotTs: selectedGame.snapshotTs,
-        price: selectedGame.price,
-        retail: selectedGame.retail,
-        discount: selectedGame.discount,
-        absDiscount: selectedGame.absDiscount,
-      },
-    ];
-  }, [historyPoints, selectedGame]);
+  const maxPage = useMemo(() => (data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1), [data]);
+  const closePanel = useCallback(() => setSelectedGame(null), []);
+  const goTo = (target: number) => {
+    setPage(Math.min(maxPage, Math.max(1, target)));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-6">
-        <label className="flex flex-col gap-1 text-sm">
-          Snapshot date
-          <input
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
-            type="date"
-            value={snapshotTs}
-            onChange={(event) => {
-              setSnapshotTs(event.target.value);
-              setPage(1);
-            }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Search game
-          <input
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
-            type="text"
-            value={search}
-            placeholder="Minecraft, Ori, ..."
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-            }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Type
-          <select
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
-            value={type}
-            onChange={(event) => {
-              setType(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="all">All types</option>
-            {meta?.types.map((entry) => (
-              <option key={entry} value={entry}>
-                {entry}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Stock
-          <div className="flex h-10 items-center rounded-md border border-slate-700 bg-slate-950 px-3">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={inStockOnly}
-                onChange={(event) => {
-                  setInStockOnly(event.target.checked);
-                  setPage(1);
-                }}
-              />
-              In stock
-            </label>
+    <>
+      <header>
+        <h1 className="text-3xl font-bold">Games</h1>
+        <p className="mt-1 text-ig-light">Every tracked product with its price on the selected day. Click a game for price and stock history.</p>
+      </header>
+
+      <div className="grid items-start gap-6 lg:grid-cols-[280px_1fr]">
+        <aside className="space-y-5 rounded-ig bg-ig-very-dark p-5 lg:sticky lg:top-24">
+          <Field label="Search">
+            <input className={inputClass} type="search" value={search} placeholder="Minecraft, Ori, …" onChange={(e) => update(setSearch)(e.target.value)} />
+          </Field>
+          <Field label="Snapshot date">
+            <input
+              className={`${inputClass} ig-date`}
+              type="date"
+              value={snapshotTs}
+              min={meta ? localDay(meta.earliestSnapshotTs) : undefined}
+              max={meta ? localDay(meta.latestSnapshotTs) : undefined}
+              onChange={(e) => update(setSnapshotTs)(e.target.value)}
+            />
+          </Field>
+          <Field label="Platform">
+            <select className={inputClass} value={type} onChange={(e) => update(setType)(e.target.value)}>
+              <option value="all">All platforms</option>
+              {meta?.types.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
+            </select>
+          </Field>
+          <div className="border-t border-white/10 pt-3">
+            <Toggle label="In stock only" checked={inStockOnly} onChange={update(setInStockOnly)} />
+            <Toggle label="Topsellers only" checked={topsellerOnly} onChange={update(setTopsellerOnly)} />
+            <Toggle label="Pre-orders only" checked={preorderOnly} onChange={update(setPreorderOnly)} />
+            <Toggle label="Hide gift cards" checked={hideGiftcards} onChange={update(setHideGiftcards)} />
           </div>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Sort
-          <div className="flex gap-2">
-            <select
-              className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
-              value={sortBy}
-              onChange={(event) => {
-                setSortBy(event.target.value as GameSortField);
-                setPage(1);
-              }}
-            >
-              {SORT_FIELDS.map((field) => (
-                <option key={field.value} value={field.value}>
-                  {field.label}
-                </option>
-              ))}
-            </select>
-            <select
-              className="rounded-md border border-slate-700 bg-slate-950 px-3 h-10"
-              value={sortDir}
-              onChange={(event) => {
-                setSortDir(event.target.value as SortDirection);
-                setPage(1);
-              }}
-            >
-              <option value="desc">Desc</option>
-              <option value="asc">Asc</option>
-            </select>
-          </div>
-        </label>
-      </div>
+        </aside>
 
-      {error ? <p className="rounded-lg bg-rose-500/10 p-3 text-rose-300">{error}</p> : null}
-
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-800/70 text-slate-300">
-              <tr>
-                <th className="px-3 py-2">Game List</th>
-                <th className="px-3 py-2">Link</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data?.rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="cursor-pointer border-t border-slate-800 hover:bg-slate-800/40"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedGame(row)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setSelectedGame(row);
-                    }
-                  }}
-                >
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-start gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={"https://gaming-cdn.com/images/products/"+ row.id +"/380x218/"+ row.url +"-cover.jpg"}
-                        alt={`${row.name} cover`}
-                        loading="lazy"
-                        className="h-12 w-20 shrink-0 rounded-md border border-slate-800 bg-slate-950 object-cover md:h-16 md:w-28"
-                        onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
-                      />
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-1.5 font-medium leading-snug">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={`/img/stats/${row.type.replace("|", "")}.svg`}
-                            alt={row.type}
-                            title={row.type}
-                            width={16}
-                            height={16}
-                            className="h-4 w-4 shrink-0 object-contain"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                          />
-                          {row.name}
-                        </p>
-                        <p className="mt-0.5 text-xs">
-                          <span className="mr-1 text-slate-400 line-through">{formatMoney(row.retail)}</span>
-                          <span className="mr-1 text-slate-500">➜</span>
-                          <span className="mr-1 text-amber-300">{formatMoney(row.price)}</span>
-                          <span className="text-emerald-400">(-{formatMoney(row.absDiscount)} / {row.discount}%)</span>
-                        </p>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {row.inStock
-                            ? <span className="rounded px-1.5 py-0.5 text-xs bg-emerald-500/15 text-emerald-300">In stock</span>
-                            : <span className="rounded px-1.5 py-0.5 text-xs bg-rose-500/15 text-rose-300">Out of stock</span>
-                          }
-                          {row.topseller && <span className="rounded px-1.5 py-0.5 text-xs bg-yellow-500/15 text-yellow-300">Topseller</span>}
-                          {row.preorder && <span className="rounded px-1.5 py-0.5 text-xs bg-blue-500/15 text-blue-300">Preorder</span>}
-                          {row.giftcard && <span className="rounded px-1.5 py-0.5 text-xs bg-orange-500/15 text-orange-300">Giftcard</span>}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <a
-                      href={"https://www.instant-gaming.com/en/" + row.id + "-buy-" + row.url + "?igr=miraculixx"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`Open ${row.name} in a new tab`}
-                      className="inline-flex items-center rounded-sm text-amber-300 hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <svg
-                        aria-hidden="true"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-5 w-5"
-                      >
-                        <path d="M14 3h7v7" />
-                        <path d="M10 14L21 3" />
-                        <path d="M21 14v7h-7" />
-                        <path d="M3 10v11h11" />
-                      </svg>
-                    </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900 p-3 text-sm">
-        <p>
-          Showing page {data?.page ?? 1} / {maxPage} ({data?.total ?? 0} total games)
-        </p>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2">
-            Page size
-            <select
-              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1"
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(Number(event.target.value));
-                setPage(1);
-              }}
-            >
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </label>
-          <button
-            className="rounded-md border border-slate-700 px-3 py-1 disabled:opacity-40"
-            disabled={page <= 1 || loading}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-          >
-            Previous
-          </button>
-          <button
-            className="rounded-md border border-slate-700 px-3 py-1 disabled:opacity-40"
-            disabled={page >= maxPage || loading}
-            onClick={() => {setPage((current) => Math.min(maxPage, current + 1)); window.scrollTo(0, 0) }}
-          >
-            Next
-          </button>
-        </div>
-      </div>
-
-      {loading ? <p className="text-sm text-slate-400">Loading games...</p> : null}
-
-      {selectedGame ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setSelectedGame(null)}>
-          <div
-            className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900"
-            onClick={(event) => event.stopPropagation()}
-          >
-            {bannerCandidates[bannerIndex] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={bannerCandidates[bannerIndex]}
-                alt={`${selectedGame.name} artwork`}
-                className="h-52 w-full rounded-t-2xl object-cover"
-                onError={() => setBannerIndex((current) => current + 1)}
-              />
-            ) : (
-              <div className="flex h-52 w-full items-center justify-center rounded-t-2xl bg-slate-950 text-slate-500">
-                No image available
-              </div>
-            )}
-
-            <div className="space-y-5 p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-2xl font-semibold">{selectedGame.name}</h2>
-                  <p className="text-sm text-slate-400">Product ID {selectedGame.id}</p>
-                </div>
-                <div>
-                  <a
-                    className="rounded-md border border-slate-700 px-3 py-2.5 text-sm font-semibold text-amber-300 mx-3 hover:bg-slate-800"
-                    href={"https://www.instant-gaming.com/en/" + selectedGame.id + "-buy-" + selectedGame.url + "?igr=miraculixx"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Open ${selectedGame.name} on Instant Gaming in a new tab`}
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    Open on IG
-                  </a>
-                  <button
-                      className="rounded-md border border-slate-700 px-3 py-2 text-sm hover:bg-slate-800"
-                      onClick={() => setSelectedGame(null)}
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm">
-                <div className="flex items-center gap-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/img/stats/${selectedGame.type.replace("|", "")}.svg`}
-                    alt={selectedGame.type}
-                    title={selectedGame.type}
-                    width={20}
-                    height={20}
-                    className="h-5 w-5 object-contain"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
-                  <span className="font-medium">{selectedGame.type}</span>
-                </div>
-                <div className="flex flex-wrap items-baseline gap-1.5">
-                  <span className="text-base text-slate-400 line-through">{formatMoney(selectedGame.retail)}</span>
-                  <span className="text-slate-500">➜</span>
-                  <span className="text-xl font-semibold text-amber-300">{formatMoney(selectedGame.price)}</span>
-                  <span className="text-emerald-400">(-{formatMoney(selectedGame.absDiscount)} / {selectedGame.discount}%)</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedGame.inStock
-                    ? <span className="rounded-md px-2 py-1 bg-emerald-500/15 text-emerald-300">In stock</span>
-                    : <span className="rounded-md px-2 py-1 bg-rose-500/15 text-rose-300">Out of stock</span>
-                  }
-                  {selectedGame.topseller && <span className="rounded-md px-2 py-1 bg-yellow-500/15 text-yellow-300">Topseller</span>}
-                  {selectedGame.preorder && <span className="rounded-md px-2 py-1 bg-blue-500/15 text-blue-300">Preorder</span>}
-                  {selectedGame.giftcard && <span className="rounded-md px-2 py-1 bg-orange-500/15 text-orange-300">Giftcard</span>}
-                  {selectedGame.categories?.map((category) => (
-                    <span key={category} className="rounded-md px-2 py-1 bg-indigo-500/15 text-indigo-300">
-                      {category}
-                    </span>
-                  ))}
-                </div>
-                {selectedGame.description ? (
-                  <p className="whitespace-pre-line text-slate-300">{selectedGame.description}</p>
-                ) : null}
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-                <h3 className="mb-3 text-lg font-semibold">Price and discount over time</h3>
-                <div className="h-72 w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                    <LineChart data={graphPoints} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <XAxis dataKey="snapshotTs" tickFormatter={(value) => String(value).slice(0, 10)} stroke="#94a3b8" />
-                      <YAxis yAxisId="price" stroke="#94a3b8" />
-                      <YAxis yAxisId="discount" orientation="right" stroke="#94a3b8" domain={[0, 100]}/>
-                      <Tooltip
-                        labelFormatter={(label) => new Date(String(label)).toLocaleDateString()}
-                        formatter={(value, name) => {
-                          const numericValue = Number(value ?? 0);
-                          if (name === "Discount") {
-                            return `${numericValue.toFixed(2)} %`;
-                          }
-                          return `${numericValue.toFixed(2)} €`;
-                        }}
-                        contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155" }}
-                      />
-                      <Legend />
-                      <Line yAxisId="price" type="monotone" dataKey="price" name="Price" stroke="#f59e0b" dot={false} />
-                      <Line yAxisId="price" type="monotone" dataKey="retail" name="Retail" stroke="#c3b6a1" dot={false} />
-                      <Line yAxisId="discount" type="monotone" dataKey="discount" name="Discount" stroke="#34d399" dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                {historyLoading ? <p className="mt-3 text-sm text-slate-400">Loading game history...</p> : null}
-                {historyError ? <p className="mt-3 text-sm text-rose-300">{historyError}</p> : null}
-              </div>
+        <section className="min-w-0 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-ig-light">
+              <span className="font-bold text-white">{data?.total.toLocaleString("en-GB") ?? "–"}</span> results
+              {loading ? <span className="ml-2 text-ig-medium-light">· updating…</span> : null}
+            </p>
+            <div className="flex items-center gap-2">
+              <label htmlFor="ig-sort" className="whitespace-nowrap text-sm text-ig-light">Sort by</label>
+              <select id="ig-sort" className={`${inputClass} w-40`} value={sortBy} onChange={(e) => update(setSortBy)(e.target.value as GameSortField)}>
+                {SORT_FIELDS.map((field) => <option key={field.value} value={field.value}>{field.label}</option>)}
+              </select>
+              <button
+                type="button"
+                aria-label={sortDir === "desc" ? "Sorted descending, switch to ascending" : "Sorted ascending, switch to descending"}
+                onClick={() => update(setSortDir)(sortDir === "desc" ? "asc" : "desc")}
+                className="flex h-11 w-11 items-center justify-center rounded-ig-sm bg-ig-medium-dark text-lg font-bold transition hover:bg-ig-medium"
+              >
+                {sortDir === "desc" ? "↓" : "↑"}
+              </button>
             </div>
           </div>
-        </div>
-      ) : null}
-    </section>
+
+          {error ? <ErrorNote>{error}</ErrorNote> : null}
+
+          <ul className={`rounded-ig bg-ig-very-dark px-2 transition-opacity sm:px-4 ${loading ? "opacity-60" : ""}`}>
+            {data?.rows.map((row) => <GameListItem key={row.id} row={row} onSelect={setSelectedGame} />)}
+            {data && data.rows.length === 0 ? <li className="py-12 text-center text-ig-light">No games match these filters.</li> : null}
+          </ul>
+
+          <Pagination page={data?.page ?? page} maxPage={maxPage} loading={loading} onPage={goTo} pageSize={pageSize} onPageSize={update(setPageSize)} />
+        </section>
+      </div>
+
+      {selectedGame ? <GamePanel game={selectedGame} onClose={closePanel} /> : null}
+    </>
   );
 }
 
+function GameListItem({ row, onSelect }: { row: GameRow; onSelect: (row: GameRow) => void }) {
+  return (
+    <li className="border-b border-white/10 last:border-b-0">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => onSelect(row)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect(row);
+          }
+        }}
+        className="group flex cursor-pointer items-center gap-3 rounded-ig-sm py-3 outline-none focus-visible:ring-2 focus-visible:ring-ig-orange sm:gap-4"
+      >
+        <div className="relative w-28 shrink-0 sm:w-40">
+          <div className="aspect-[16/9.2] overflow-hidden rounded-ig-sm bg-ig-ultra-dark">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={coverUrl(row.id, row.url)}
+              alt=""
+              loading="lazy"
+              className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 ${row.inStock ? "" : "opacity-50 grayscale"}`}
+              onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+            />
+          </div>
+          <span className="absolute left-1.5 top-1.5 rounded bg-ig-ultra-dark/80 p-0.5"><PlatformIcon type={row.type} size={14} /></span>
+          <DiscountBadge value={row.discount} className="absolute -bottom-0.5 -left-0.5" />
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="line-clamp-2 font-bold leading-snug text-white transition-colors group-hover:text-ig-hover">{row.name}</p>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ig-light">
+            <span className="flex items-center gap-1.5">
+              <StockDot inStock={row.inStock} />
+              {row.inStock ? "In stock" : <>Out of stock · last seen {formatDate(row.snapshotTs)}</>}
+            </span>
+            <span className="text-ig-medium-light">·</span>
+            <span>{row.type}</span>
+            {row.categories.length > 0 ? <span className="hidden text-ig-medium-light md:inline">· {row.categories.slice(0, 3).join(", ")}</span> : null}
+          </p>
+          {row.topseller || row.preorder || row.giftcard ? (
+            <div className="flex flex-wrap gap-1">
+              {row.topseller ? <Tag tone="orange">Topseller</Tag> : null}
+              {row.preorder ? <Tag tone="orange">Pre-order</Tag> : null}
+              {row.giftcard ? <Tag tone="orange">Gift card</Tag> : null}
+            </div>
+          ) : null}
+          {row.description ? <p className="hidden truncate text-xs text-ig-medium-light xl:block">{row.description}</p> : null}
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
+          {row.retail > row.price ? <span className="text-xs text-ig-medium-light line-through">{formatMoney(row.retail)}</span> : null}
+          <span className="text-lg font-bold sm:text-[21px] sm:leading-[26px]">{formatMoney(row.price)}</span>
+          {row.absDiscount > 0 ? <span className="text-xs text-ig-light">save {formatMoney(row.absDiscount)}</span> : null}
+        </div>
+
+        <a
+          href={productLink(row.id, row.url)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Open ${row.name} on Instant Gaming`}
+          onClick={(event) => event.stopPropagation()}
+          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ig-medium-dark text-ig-very-light transition hover:bg-fire hover:text-white sm:flex"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <path d="M14 4h6v6" />
+            <path d="M10 14 20 4" />
+            <path d="M20 14v6H4V4h6" />
+          </svg>
+        </a>
+      </div>
+    </li>
+  );
+}
+
+function Pagination({ page, maxPage, loading, onPage, pageSize, onPageSize }: {
+  page: number;
+  maxPage: number;
+  loading: boolean;
+  onPage: (page: number) => void;
+  pageSize: number;
+  onPageSize: (size: number) => void;
+}) {
+  const start = Math.max(1, Math.min(page - 2, maxPage - 4));
+  const pages = Array.from({ length: Math.min(5, maxPage) }, (_, i) => start + i);
+  const buttonClass = "flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-30";
+
+  return (
+    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-1">
+        <button type="button" className={`${buttonClass} bg-ig-medium-dark hover:bg-ig-medium`} disabled={page <= 1 || loading} onClick={() => onPage(page - 1)} aria-label="Previous page">‹</button>
+        {pages.map((p) => (
+          <button
+            key={p}
+            type="button"
+            aria-current={p === page ? "page" : undefined}
+            disabled={loading}
+            onClick={() => onPage(p)}
+            className={`${buttonClass} ${p === page ? "bg-fire" : "text-ig-very-light hover:bg-ig-medium-dark"}`}
+          >
+            {p}
+          </button>
+        ))}
+        <button type="button" className={`${buttonClass} bg-ig-medium-dark hover:bg-ig-medium`} disabled={page >= maxPage || loading} onClick={() => onPage(page + 1)} aria-label="Next page">›</button>
+        <span className="ml-2 text-sm text-ig-medium-light">of {maxPage}</span>
+      </div>
+      <label className="flex items-center gap-2 whitespace-nowrap text-sm text-ig-light">
+        Per page
+        <select className={`${inputClass} h-10 w-20`} value={pageSize} onChange={(e) => onPageSize(Number(e.target.value))}>
+          {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+        </select>
+      </label>
+    </nav>
+  );
+}

@@ -1,9 +1,17 @@
 openapi: 3.1.0
 info:
   title: Miraculixx Instant Gaming Stats API
-  version: 2.0.0
+  version: 2.1.0
   description: |
     External API contract used by the Next.js Instant Gaming analytics frontend.
+
+    ## Changes in 2.1.0 (weekly compaction + availability)
+    - Snapshots older than ~1 month are compacted into one row per game per ISO week, stamped Monday 00:00 (server time). Its values are the average of that week's daily rows.
+    - `GameHistoryPoint.samples`: number of daily in-stock snapshots merged into the point (1 = daily, >1 = compacted week).
+    - `GameHistoryResponse.availability`: stock timeline from the game's first appearance on.
+    - `OverviewPoint.gameCount` is now the average number of in-stock games per day in the bucket (week/month buckets used to sum rows).
+    - `/games?snapshotTs=YYYY-MM-DD` falls back to the compacted week containing that date.
+    - `/overview` is served from a pre-aggregated rollup. The `onlyTopseller` / `includePreorder` / `includeGiftcard` / `type` filters now apply to each game's flags at snapshot time, not its current flags (snapshots before this release use the flags at migration time).
 
     ## BREAKING CHANGES in 2.0.0 (official IG API migration)
     - The underlying data model was split into stable `game_meta` + time-series `snapshot_prices`.
@@ -234,7 +242,7 @@ components:
       required: false
       schema:
         type: boolean
-      description: '**New in 2.0.0.** Filter by current stock availability.'
+      description: '**New in 2.0.0.** Filter by stock availability at the requested `snapshotTs`. `true` returns only games with a price recorded at that exact snapshot; `false` returns only games whose most recent price is older than the requested snapshot (i.e. went out of stock); omit to include both.'
     SortBy:
       name: sortBy
       in: query
@@ -339,6 +347,7 @@ components:
           format: date-time
         gameCount:
           type: integer
+          description: 'Average in-stock games per day within the bucket.'
         avgDiscount:
           type: number
         minDiscount:
@@ -411,6 +420,7 @@ components:
         snapshotTs:
           type: string
           format: date-time
+          description: 'Timestamp of the price data actually returned. Equals the requested snapshot when `inStock=true`; otherwise the last snapshot before it where the game was available.'
         id:
           type: integer
         name:
@@ -433,6 +443,7 @@ components:
           type: boolean
         inStock:
           type: boolean
+          description: 'True iff the game had a price recorded at the exact requested snapshot. False means the price shown is a fallback from an earlier snapshot (game was out of stock at the requested time).'
         steamId:
           type: [integer, 'null']
         retail:
@@ -461,7 +472,7 @@ components:
           type: integer
     GameHistoryPoint:
       type: object
-      required: [snapshotTs, price, retail, discount, absDiscount]
+      required: [snapshotTs, price, retail, discount, absDiscount, samples]
       properties:
         snapshotTs:
           type: string
@@ -474,9 +485,29 @@ components:
           type: integer
         absDiscount:
           type: number
+        samples:
+          type: integer
+          description: 'Daily in-stock snapshots merged into this point. 1 for daily data, >1 for a compacted week (values are averages).'
+    AvailabilitySpan:
+      type: object
+      required: [from, to, inStock, tracked]
+      description: 'Time range `[from, to)` of equal availability. Fully in-stock and fully out-of-stock runs are merged; partially available compacted weeks stay separate.'
+      properties:
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        inStock:
+          type: integer
+          description: 'Days the game was in stock within the span.'
+        tracked:
+          type: integer
+          description: 'Days tracked within the span. `inStock == tracked` → in stock, `0` → out of stock, otherwise partial.'
     GameHistoryResponse:
       type: object
-      required: [id, name, type, url, points]
+      required: [id, name, type, url, points, availability]
       description: '**Changed in 2.0.0**: `prodId`→`id`; `seoName` removed; `type` and `url` added.'
       properties:
         id:
@@ -491,6 +522,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GameHistoryPoint'
+        availability:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilitySpan'
     ErrorEnvelope:
       type: object
       required: [error]

@@ -90,6 +90,14 @@ export interface GameHistoryPoint {
   retail: number;
   discount: number;
   absDiscount: number;
+  samples: number;
+}
+
+export interface AvailabilitySpan {
+  from: string;
+  to: string;
+  inStock: number;
+  tracked: number;
 }
 
 export interface GameHistoryResponse {
@@ -98,4 +106,5 @@ export interface GameHistoryResponse {
   type: string;
   url: string;
   points: GameHistoryPoint[];
+  availability: AvailabilitySpan[];
 }

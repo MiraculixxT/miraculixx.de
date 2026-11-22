@@ -21,6 +21,7 @@ export default function StatsAdminPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [forceUpdate, setForceUpdate] = useState<ActionState>(INITIAL_ACTION_STATE);
   const [refreshCache, setRefreshCache] = useState<ActionState>(INITIAL_ACTION_STATE);
+  const [compact, setCompact] = useState<ActionState>(INITIAL_ACTION_STATE);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,11 +57,11 @@ export default function StatsAdminPage() {
     setter({ loading: true, message: null, error: null });
     try {
       const response = await accessProtectedAPI(path, {}, "/stats/ig/admin", "POST");
+      const text = await response.text();
       if (!response.ok) {
-        setter({ loading: false, message: null, error: `Request failed (${response.status})` });
+        setter({ loading: false, message: null, error: `Request failed (${response.status})${text ? `: ${text}` : ""}` });
         return;
       }
-      const text = await response.text();
       setter({ loading: false, message: text || "Done", error: null });
     } catch {
       setter({ loading: false, message: null, error: "Request failed" });
@@ -68,18 +69,18 @@ export default function StatsAdminPage() {
   }
 
   if (checking) {
-    return <p className="text-sm text-slate-400">Checking permissions...</p>;
+    return <p className="text-sm text-ig-light">Checking permissions...</p>;
   }
 
   if (loadError) {
-    return <p className="rounded-lg bg-rose-500/10 p-3 text-rose-300">{loadError}</p>;
+    return <p className="rounded-ig-sm bg-ig-red/10 px-4 py-3 text-sm text-ig-red">{loadError}</p>;
   }
 
   if (!isAdmin) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-        <h2 className="text-xl font-semibold">Access denied</h2>
-        <p className="mt-2 text-sm text-slate-400">
+      <div className="rounded-ig bg-ig-very-dark p-6">
+        <h2 className="text-xl font-bold">Access denied</h2>
+        <p className="mt-2 text-sm text-ig-light">
           Your account does not have admin permissions for the stats API.
         </p>
       </div>
@@ -88,19 +89,27 @@ export default function StatsAdminPage() {
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-        <h1 className="text-2xl font-semibold">Admin Panel</h1>
-        <p className="mt-1 text-sm text-slate-400">
+      <div className="rounded-ig bg-ig-very-dark p-5">
+        <h1 className="text-2xl font-bold">Admin Panel</h1>
+        <p className="mt-1 text-sm text-ig-light">
           Trigger maintenance actions on the Instant Gaming stats backend.
         </p>
       </div>
 
       <AdminAction
         title="Force update"
-        description="Triggers an immediate scrape run, bypassing the normal schedule."
+        description="Triggers an immediate scrape run, bypassing the normal schedule, followed by the weekly compaction of snapshots older than a month."
         buttonLabel="Run force-update"
         state={forceUpdate}
         onRun={() => runAction("stats/force-update", setForceUpdate)}
+      />
+
+      <AdminAction
+        title="Compact snapshots"
+        description="Merges snapshots older than a month into one row per week, without scraping a new snapshot. Runs in the background; check the server log for progress."
+        buttonLabel="Run compaction"
+        state={compact}
+        onRun={() => runAction("stats/compact", setCompact)}
       />
 
       <AdminAction
@@ -128,26 +137,26 @@ function AdminAction({
   onRun: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+    <div className="rounded-ig bg-ig-very-dark p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <p className="mt-1 text-sm text-slate-400">{description}</p>
+          <h2 className="text-lg font-bold">{title}</h2>
+          <p className="mt-1 text-sm text-ig-light">{description}</p>
         </div>
         <button
           type="button"
           disabled={state.loading}
           onClick={onRun}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-11 rounded-full bg-fire px-5 text-sm font-bold text-white transition hover:bg-fire-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           {state.loading ? "Running..." : buttonLabel}
         </button>
       </div>
       {state.message ? (
-        <p className="mt-3 rounded-md bg-emerald-500/10 p-3 text-sm text-emerald-300">{state.message}</p>
+        <p className="mt-3 rounded-ig-sm bg-ig-green/10 p-3 text-sm text-ig-green">{state.message}</p>
       ) : null}
       {state.error ? (
-        <p className="mt-3 rounded-md bg-rose-500/10 p-3 text-sm text-rose-300">{state.error}</p>
+        <p className="mt-3 rounded-ig-sm bg-ig-red/10 p-3 text-sm text-ig-red">{state.error}</p>
       ) : null}
     </div>
   );
