@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Barlow } from "next/font/google";
 import IgNav from "@/components/stats/ig/IgNav";
+import { igMetadata } from "@/components/stats/ig/seo";
 import "./ig.css";
+
+export const metadata: Metadata = igMetadata({
+  description: "Unofficial Instant Gaming price tracker: daily snapshots of prices, discounts and savings across Steam, Xbox, PlayStation, Nintendo and more, with full price history per game.",
+  path: "/stats/ig",
+});
 
 const barlow = Barlow({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-barlow" });
 
