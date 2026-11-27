@@ -16,7 +16,7 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "Miraculixx",
-  description: "Miraculixx Website - Some stuff made by me",
+  description: "Minecraft mods, data tools and Discord bots made by Miraculixx",
 };
 
 export default function RootLayout({

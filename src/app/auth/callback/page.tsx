@@ -2,6 +2,8 @@
 import {setToken} from "@/components/tokenCookie";
 import {redirect} from "next/navigation";
 import {useEffect} from "react";
+import SiteShell from "@/components/site/SiteShell";
+import MessagePanel from "@/components/site/MessagePanel";
 
 
 export default function AuthenticationCallback() {
@@ -24,5 +26,5 @@ export default function AuthenticationCallback() {
         }
     }, []);
 
-    return (<div>Loading..</div>);
+    return (<SiteShell><MessagePanel title="Logging in" loading>One moment, sending you back.</MessagePanel></SiteShell>);
 }

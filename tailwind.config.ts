@@ -11,6 +11,18 @@ export default {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        site: {
+          bg: "#0b0916",
+          panel: "#151129",
+          raised: "#1d1838",
+          line: "#2f2560",
+          dim: "#6f66a8",
+          muted: "#8b7cff",
+          soft: "#bdb3ff",
+          text: "#e9e4ff",
+          accent: "#ff4d6d",
+          gold: "#ffe27a",
+        },
         ig: {
           orange: "#ff5400",
           hover: "#ffa700",
@@ -36,6 +48,11 @@ export default {
       },
       fontFamily: {
         barlow: ["var(--font-barlow)", "Arial", "sans-serif"],
+        pixel: ["var(--font-pixel)", "monospace"],
+        silk: ["var(--font-silk)", "monospace"],
+        body: ["var(--font-body)", "sans-serif"],
+        term: ["var(--font-term)", "monospace"],
+        mc: ["var(--font-mc)", "monospace"],
       },
     },
   },

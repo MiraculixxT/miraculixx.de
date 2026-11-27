@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic';
 import {useEffect} from "react";
 import {redirect} from "next/navigation";
 import {API_URL} from "@/app/config";
+import SiteShell from "@/components/site/SiteShell";
+import MessagePanel from "@/components/site/MessagePanel";
 
 
 export default function AuthenticationRedirect() {
@@ -20,6 +22,6 @@ export default function AuthenticationRedirect() {
     }, []);
 
     return (
-        <a>Redirecting...</a>
+        <SiteShell><MessagePanel title="Redirecting" loading>Taking you to the login page.</MessagePanel></SiteShell>
     );
 }

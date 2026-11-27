@@ -1,30 +1,34 @@
 import Link from "next/link";
+import type {CSSProperties} from "react";
+import SiteShell from "@/components/site/SiteShell";
+import Display from "@/components/site/Display";
+
+const tools = [
+    {href: "/stats/ig", title: "Instant Gaming dashboard", text: "Game count, discount percentages and absolute discount trends over time.", color: "#ff2bd6"},
+    {href: "/stats/ig/games", title: "Instant Gaming games", text: "Filter and sort every game by discount, absolute discount and price, with full history.", color: "#00fff0"},
+    {href: "/stats/ig/giveaways", title: "Instant Gaming giveaways", text: "Current giveaways with codes that resolve on their own.", color: "#c6ff00"},
+];
 
 export default function StatisticsHome() {
-  return (
-    <main className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <header>
-          <p className="text-sm uppercase tracking-widest text-indigo-300">Statistics</p>
-          <h1 className="mt-2 text-4xl font-bold">Data analysis playground</h1>
-          <p className="mt-2 text-slate-300">Analyze your Instant Gaming snapshots with charts and sortable game lists.</p>
-        </header>
-
-        <section className="grid gap-4 md:grid-cols-2">
-          <Link href="/stats/ig" className="rounded-2xl border border-slate-800 bg-slate-900 p-5 hover:border-indigo-500">
-            <h2 className="text-2xl font-semibold">Instant Gaming dashboard</h2>
-            <p className="mt-2 text-slate-300">Follow game count, discount percentages and absolute discount trends over time.</p>
-          </Link>
-
-          <Link
-            href="/stats/ig/games"
-            className="rounded-2xl border border-slate-800 bg-slate-900 p-5 hover:border-indigo-500"
-          >
-            <h2 className="text-2xl font-semibold">Instant Gaming games table</h2>
-            <p className="mt-2 text-slate-300">Filter and sort snapshot rows by discount %, absolute discount and price.</p>
-          </Link>
-        </section>
-      </div>
-    </main>
-  );
+    return (
+        <SiteShell>
+            <div className="py-12">
+                <Display id="stats" index="02" title="STATS & TOOLS" led="#00fff0">
+                    <div className="neon-grid p-5 text-[#d7f9ff] sm:p-7">
+                        <h1 className="neon-c font-silk text-3xl tracking-wider">{"// STATS"}</h1>
+                        <p className="text-[#7aa7b8]">Data analysis playground – pick a tool.</p>
+                        <div className="mt-6 grid gap-5 md:grid-cols-3">
+                            {tools.map(t => (
+                                <Link key={t.href} href={t.href} className="neon-box block p-5 transition hover:bg-white/5" style={{"--n": t.color} as CSSProperties}>
+                                    <h2 className="font-silk text-lg" style={{color: t.color, textShadow: `0 0 8px ${t.color}`}}>{t.title}</h2>
+                                    <p className="mt-2 text-[#b8d4e0]">{t.text}</p>
+                                    <span className="mt-4 inline-block font-silk text-xs" style={{color: t.color}}>OPEN →</span>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                </Display>
+            </div>
+        </SiteShell>
+    );
 }

@@ -1,0 +1,35 @@
+.site-root { position: relative; background: #0b0916; -webkit-font-smoothing: none; font-size: 18px; line-height: 1.35 }
+.site-root::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .3;
+  background-image: radial-gradient(#fff 1px, transparent 1.5px), radial-gradient(#8b7cff 1px, transparent 1.5px);
+  background-size: 90px 70px, 140px 110px; background-position: 10px 20px, 50px 60px;
+}
+.site-root::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 40;
+  background: repeating-linear-gradient(rgba(0, 0, 0, .14) 0 2px, transparent 2px 4px);
+}
+.site-root > * { position: relative }
+.site-root img.px, .site-root .px { image-rendering: pixelated }
+
+.notch { --notch: #2f2560; box-shadow: 0 -4px 0 0 var(--notch), 0 4px 0 0 var(--notch), -4px 0 0 0 var(--notch), 4px 0 0 0 var(--notch) }
+.px-shadow { text-shadow: 4px 4px 0 #ff4d6d, 8px 8px 0 #3b2a7a }
+.led { display: inline-block; width: 10px; height: 10px; background: var(--led); box-shadow: 0 0 8px var(--led) }
+
+.mc-sky { background: linear-gradient(#0d1330, #1b2a55 70%, #2b3d6e) }
+.mc-strip { height: 224px; background: url(/img/mc/transition-top.webp) repeat-x bottom left / auto 224px; image-rendering: pixelated }
+.mc-body { background: url(/img/mc/main-body.webp) repeat 0 0 / 32px 32px; image-rendering: pixelated }
+.mc-bedrock { height: 96px; background: url(/img/mc/transition-footer.webp) repeat-x bottom left / auto 96px, url(/img/mc/main-body.webp) repeat 0 0 / 32px 32px; image-rendering: pixelated }
+.mc-card { background: rgba(14, 10, 24, .88); --notch: #050308 }
+.mc-text { text-shadow: 2px 2px 0 #3f3f3f }
+
+.neon-grid {
+  background-color: #05060d;
+  background-image: linear-gradient(rgba(0, 255, 240, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 240, .06) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.neon-c { color: #00fff0; text-shadow: 0 0 6px #00fff0, 0 0 18px rgba(0, 255, 240, .5) }
+.neon-m { color: #ff2bd6; text-shadow: 0 0 8px #ff2bd6 }
+.neon-box { border: 2px solid var(--n); box-shadow: 0 0 10px color-mix(in srgb, var(--n) 55%, transparent), inset 0 0 10px color-mix(in srgb, var(--n) 20%, transparent) }
+
+.dc-btn { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 12px; border-radius: 4px; font-size: 15px; color: #fff; background: #4e5058 }
+.dc-btn.green { background: #248046 } .dc-btn.red { background: #da373c } .dc-btn.blurple { background: #5865f2 } .dc-btn.off { opacity: .5 }
