@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { href: "/stats/ig", label: "Dashboard" },
   { href: "/stats/ig/games", label: "Games" },
+  { href: "/stats/ig/giveaways", label: "Giveaways" },
 ];
 
 export default function IgNav() {
@@ -16,7 +17,7 @@ export default function IgNav() {
       <div className="mx-auto flex h-16 w-full max-w-[1400px] items-center justify-between gap-4 px-4 md:px-8">
         <Link href="/stats/ig" className="flex items-center gap-2.5">
           <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-ig-sm bg-fire text-sm font-bold">%</span>
-          <span className="flex flex-col leading-tight">
+          <span className="hidden flex-col leading-tight sm:flex">
             <span className="text-lg font-bold">Price Tracker</span>
             <span className="hidden text-[11px] font-bold uppercase tracking-widest text-ig-medium-light sm:block">Instant Gaming data</span>
           </span>
@@ -29,7 +30,7 @@ export default function IgNav() {
                 <Link
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className={`block rounded-full px-4 py-2 transition ${active ? "bg-fire text-white" : "text-ig-very-light hover:bg-ig-medium-dark hover:text-white"}`}
+                  className={`block rounded-full px-3 py-2 transition sm:px-4 ${active ? "bg-fire text-white" : "text-ig-very-light hover:bg-ig-medium-dark hover:text-white"}`}
                 >
                   {item.label}
                 </Link>

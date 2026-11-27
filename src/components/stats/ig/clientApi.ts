@@ -3,6 +3,7 @@ import type {
   GameHistoryResponse,
   GamesQuery,
   GamesResponse,
+  GiveawaysResponse,
   MetaResponse,
   OverviewQuery,
   OverviewResponse,
@@ -82,6 +83,14 @@ export async function fetchGameHistory(query: GameHistoryQuery, signal?: AbortSi
   const response = await fetch(path, { signal, cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Failed to fetch game history (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function fetchGiveaways(signal?: AbortSignal): Promise<GiveawaysResponse> {
+  const response = await fetch("/api/ig-giveaways", { signal, cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch giveaways (${response.status})`);
   }
   return response.json();
 }

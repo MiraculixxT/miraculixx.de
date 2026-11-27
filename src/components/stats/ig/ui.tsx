@@ -22,6 +22,10 @@ export function productLink(id: number, url: string) {
   return `https://www.instant-gaming.com/en/${id}-buy-${url}?igr=${IG_REF}`;
 }
 
+export function giveawayLink(code: string) {
+  return `https://www.instant-gaming.com/en/giveaway/${encodeURIComponent(code)}?igr=${IG_REF}`;
+}
+
 export function coverUrl(id: number, url: string, size: "380x218" | "616x353" = "380x218") {
   return `https://gaming-cdn.com/images/products/${id}/${size}/${url}-cover.jpg`;
 }

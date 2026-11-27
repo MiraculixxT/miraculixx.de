@@ -108,3 +108,25 @@ export interface GameHistoryResponse {
   points: GameHistoryPoint[];
   availability: AvailabilitySpan[];
 }
+
+export interface GiveawayWinner {
+  nickname: string;
+  profileUrl: string;
+  avatarUrl: string | null;
+  product: { id: number; slug: string } | null;
+}
+
+export interface Giveaway {
+  code: string;
+  name: string;
+  avatarUrl: string | null;
+  endDate: string;
+  recurrence: string | null;
+  official: boolean;
+  lastWinner: GiveawayWinner | null;
+}
+
+export interface GiveawaysResponse {
+  updatedAt: string;
+  giveaways: Giveaway[];
+}

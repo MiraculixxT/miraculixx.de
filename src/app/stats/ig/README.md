@@ -6,6 +6,11 @@ This folder contains a ready-to-run frontend for exploring Instant Gaming snapsh
 
 - `/stats/ig`: Dashboard with filters and Recharts time-series visualizations
 - `/stats/ig/games`: Sortable and filterable games table
+- `/stats/ig/giveaways`: Active giveaways (Instant Gaming country giveaways and creator giveaways) with next draw, last winner and referral link
+
+## Giveaways
+
+Instant Gaming has no public giveaway list, so `src/app/api/ig-giveaways/route.ts` scrapes `instant-gaming.com/en/giveaway/<CODE>` for every code in `src/app/api/ig-giveaways/codes.json` (in-memory cache, refreshed every 3h or 10min after a draw passed). Pages without a countdown or returning 404 are treated as inactive. Codes starting with `INSTANTGAMING` are official ones. Add new codes to `codes.json` by hand (seeded from https://github.com/enzomtpYT/InstantGamingGiveawayList).
 
 ## Frontend API contract (used by UI)
 
